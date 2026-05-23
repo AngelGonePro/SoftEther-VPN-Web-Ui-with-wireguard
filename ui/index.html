@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPN Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f13;--surface:#17171f;--card:#1e1e2a;--border:#ffffff18;--border2:#ffffff28;
+  --text:#e8e8f0;--muted:#8888a0;--hint:#55556a;
+  --accent:#7f77dd;--accent-dim:#534ab7;--accent-bg:#2a2650;--accent-text:#afa9ec;
+  --green:#1d9e75;--green-bg:#0c2d22;--green-text:#5dcaa5;
+  --red:#e24b4a;--red-bg:#2d0f0f;--red-text:#f09595;
+  --amber:#ba7517;--amber-bg:#2d1f08;--amber-text:#fac775;
+}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.5;min-height:100vh}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:0.5px solid var(--border);background:var(--surface)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:34px;height:34px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center}
+.logo-icon i{color:#cecbf6;font-size:17px}
+.logo-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700}
+.logo-sub{font-size:10px;color:var(--muted)}
+.status-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;background:var(--green-bg);color:var(--green-text);border:0.5px solid #1d9e7540}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.nav{display:flex;border-bottom:0.5px solid var(--border);background:var(--surface);padding:0 24px;overflow-x:auto}
+.nav-item{padding:11px 18px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s}
+.nav-item:hover{color:var(--text)}
+.nav-item.active{color:var(--accent-text);border-bottom-color:var(--accent)}
+.main{padding:24px;flex:1}
+.page{display:none}
+.page.active{display:block}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.stat-val{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:var(--text)}
+.stat-sub{font-size:10px;color:var(--hint);margin-top:3px}
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:12px;font-weight:500;color:var(--text);text-transform:uppercase;letter-spacing:.05em}
+.card-sub{font-size:11px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--muted);font-weight:500;padding:0 12px 10px 0;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+td{padding:10px 12px 10px 0;border-top:0.5px solid var(--border);color:var(--text);vertical-align:middle}
+tr:first-child td{border-top:none}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge.green{background:var(--green-bg);color:var(--green-text);border:0.5px solid #1d9e7530}
+.badge.red{background:var(--red-bg);color:var(--red-text);border:0.5px solid #e24b4a30}
+.badge.amber{background:var(--amber-bg);color:var(--amber-text);border:0.5px solid #ba751730}
+.badge.purple{background:var(--accent-bg);color:var(--accent-text);border:0.5px solid #7f77dd30}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid var(--border2);background:var(--surface);color:var(--text);transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--card)}
+.btn.primary{background:var(--accent-dim);color:#cecbf6;border-color:var(--accent-dim)}
+.btn.primary:hover{background:var(--accent)}
+.btn.danger{background:var(--red-bg);color:var(--red-text);border-color:#e24b4a40}
+.btn.danger:hover{background:#3d1010}
+.btn.sm{padding:4px 10px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.form-label{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+input[type=text],input[type=password],input[type=number],select,textarea{padding:9px 11px;border:0.5px solid var(--border2);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);font-family:inherit;transition:border-color .15s}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px #7f77dd20}
+select option{background:var(--card)}
+.config-box{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);white-space:pre;overflow-x:auto;line-height:1.7;margin-top:10px;max-height:300px;overflow-y:auto}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.login-card{background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:36px;width:380px}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.login-icon{width:44px;height:44px;border-radius:12px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center}
+.login-icon i{color:#cecbf6;font-size:22px}
+.login-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700}
+.login-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.alert{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;background:var(--red-bg);color:var(--red-text);border:0.5px solid #e24b4a40;display:none}
+.alert.show{display:block}
+.modal-backdrop{display:none;position:fixed;inset:0;background:#00000070;z-index:200;align-items:center;justify-content:center}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:26px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:18px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:0.5px solid var(--border);border-radius:10px;padding:12px 18px;font-size:12px;z-index:300;transform:translateY(80px);opacity:0;transition:all .3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:#1d9e7540;color:var(--green-text)}
+.toast.error{border-color:#e24b4a40;color:var(--red-text)}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text)}
+
+/* Export tabs */
+.device-tabs{display:flex;gap:0;border-bottom:0.5px solid var(--border);margin-bottom:20px;overflow-x:auto}
+.device-tab{padding:9px 16px;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s}
+.device-tab:hover{color:var(--text)}
+.device-tab.active{color:var(--accent-text);border-bottom-color:var(--accent)}
+.device-panel{display:none}
+.device-panel.active{display:block}
+.proto-section{margin-bottom:20px}
+.proto-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:0;cursor:pointer}
+.proto-header-title{font-size:12px;font-weight:500;color:var(--text)}
+.proto-header-sub{font-size:11px;color:var(--muted)}
+.proto-body{border:0.5px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:14px;background:var(--card)}
+.info-grid{display:grid;grid-template-columns:140px 1fr;gap:6px 16px;font-size:12px;margin-bottom:12px}
+.info-key{color:var(--muted)}
+.info-val{color:var(--text);font-family:'JetBrains Mono',monospace;word-break:break-all}
+@media(max-width:700px){.stats-grid{grid-template-columns:1fr 1fr}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-icon"><i class="ti ti-shield-lock"></i></div>
+      <div><div class="login-title">VPN Manager</div><div class="login-sub">SoftEther + WireGuard</div></div>
+    </div>
+    <div id="login-err" class="alert"></div>
+    <div class="form-group">
+      <label class="form-label">Server Public IP / Domain</label>
+      <input type="text" id="f-host" placeholder="45.79.25.46">
+    </div>
+    <div class="form-group">
+      <label class="form-label">SoftEther Admin Password (SPW)</label>
+      <input type="password" id="f-pass" placeholder="Password from docker-compose.yml">
+    </div>
+    <button class="btn primary" style="width:100%;justify-content:center;padding:10px" onclick="doLogin()" id="login-btn">
+      <i class="ti ti-login"></i> Connect
+    </button>
+    <p style="font-size:10px;color:var(--hint);text-align:center;margin-top:14px">Use your public IP, not local IP — generated configs will use this address</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="app" style="display:none">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon"><i class="ti ti-shield-lock"></i></div>
+      <div><div class="logo-name">VPN Manager</div><div class="logo-sub" id="h-host">—</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="status-pill"><div class="dot"></div><span>Online</span></div>
+      <button class="btn sm" onclick="doLogout()"><i class="ti ti-logout"></i> Logout</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-layout-dashboard" style="margin-right:6px"></i>Dashboard</div>
+    <div class="nav-item" onclick="showPage('users',this)"><i class="ti ti-users" style="margin-right:6px"></i>Users</div>
+    <div class="nav-item" onclick="showPage('sessions',this)"><i class="ti ti-wifi" style="margin-right:6px"></i>Sessions</div>
+    <div class="nav-item" onclick="showPage('export',this)"><i class="ti ti-file-download" style="margin-right:6px"></i>Config Export</div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-label">Active Sessions</div><div class="stat-val" id="s-sessions">—</div><div class="stat-sub">SoftEther clients</div></div>
+        <div class="stat"><div class="stat-label">Total Users</div><div class="stat-val" id="s-users">—</div><div class="stat-sub">in hub</div></div>
+        <div class="stat"><div class="stat-label">Uptime</div><div class="stat-val" id="s-uptime">—</div><div class="stat-sub">days running</div></div>
+        <div class="stat"><div class="stat-label">Server Version</div><div class="stat-val" id="s-version" style="font-size:12px;padding-top:8px">—</div><div class="stat-sub">SoftEther VPN</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Active Protocols</div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>WireGuard :${CFG.wgPort}</span>
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>SSL-VPN :${CFG.ports.ovpnTcp}/:${CFG.ports.sslVpn}</span>
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>OpenVPN UDP :${CFG.ports.ovpnUdp}</span>
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>OpenVPN TCP :${CFG.ports.ovpnTcp}</span>
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>L2TP/IPsec :${CFG.ports.l2tp}</span>
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>IKEv2 :${CFG.ports.ikev2}/:${CFG.ports.ikev2Nat}</span>
+          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>SSTP :${CFG.ports.ovpnTcp}</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Recent Sessions</div>
+          <button class="btn sm" onclick="loadDashboard()"><i class="ti ti-refresh"></i> Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>User</th><th>Type</th><th>Client IP</th><th>Since</th><th>Action</th></tr></thead>
+          <tbody id="dash-sessions"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="page-users" class="page">
+      <div class="section-head">
+        <div class="section-title">VPN Users</div>
+        <button class="btn primary" onclick="openModal('modal-adduser')"><i class="ti ti-plus"></i> Add User</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead style="background:var(--surface)">
+            <tr>
+              <th style="padding:12px 12px 12px 20px">Username</th>
+              <th style="padding:12px">Auth</th>
+              <th style="padding:12px">Status</th>
+              <th style="padding:12px">Logins</th>
+              <th style="padding:12px">Last Login</th>
+              <th style="padding:12px 20px 12px 12px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SESSIONS -->
+    <div id="page-sessions" class="page">
+      <div class="section-head">
+        <div class="section-title">Active Sessions</div>
+        <button class="btn" onclick="loadSessions()"><i class="ti ti-refresh"></i> Refresh</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead style="background:var(--surface)">
+            <tr>
+              <th style="padding:12px 12px 12px 20px">Session</th>
+              <th style="padding:12px">Username</th>
+              <th style="padding:12px">Type</th>
+              <th style="padding:12px">Client IP</th>
+              <th style="padding:12px">Packets</th>
+              <th style="padding:12px 20px 12px 12px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONFIG EXPORT -->
+    <div id="page-export" class="page">
+      <div class="section-head">
+        <div class="section-title">Config Export</div>
+      </div>
+
+      <!-- User selector -->
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px">
+            <label class="form-label">Username</label>
+            <select id="exp-user"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px">
+            <label class="form-label">WireGuard Peer #</label>
+            <select id="exp-wg-peer">
+              <option value="peer1">Peer 1</option>
+              <option value="peer2">Peer 2</option>
+              <option value="peer3">Peer 3</option>
+              <option value="peer4">Peer 4</option>
+              <option value="peer5">Peer 5</option>
+            </select>
+            <p style="font-size:10px;color:var(--hint);margin-top:4px">Add more peers by increasing WG_PEERS= in .env and restarting wireguard</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Device tabs -->
+      <div class="device-tabs">
+        <div class="device-tab active" onclick="switchDevice('android',this)"><i class="ti ti-brand-android" style="margin-right:5px"></i>Android</div>
+        <div class="device-tab" onclick="switchDevice('ios',this)"><i class="ti ti-brand-apple" style="margin-right:5px"></i>iOS</div>
+        <div class="device-tab" onclick="switchDevice('windows',this)"><i class="ti ti-brand-windows" style="margin-right:5px"></i>Windows</div>
+        <div class="device-tab" onclick="switchDevice('macos',this)"><i class="ti ti-apple" style="margin-right:5px"></i>macOS</div>
+        <div class="device-tab" onclick="switchDevice('unifi',this)"><i class="ti ti-router" style="margin-right:5px"></i>UniFi</div>
+        <div class="device-tab" onclick="switchDevice('linux',this)"><i class="ti ti-brand-ubuntu" style="margin-right:5px"></i>Linux</div>
+      </div>
+
+      <!-- ANDROID -->
+      <div id="device-android" class="device-panel active">
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('android-wg')">
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest, recommended</div><div class="proto-header-sub">Install: WireGuard app from Play Store</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="android-wg" class="proto-body">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf file and import it in the WireGuard app → + → Import from file</p>
+            <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('android-ovpn')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN — good compatibility</div><div class="proto-header-sub">Install: OpenVPN Connect from Play Store</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="android-ovpn" class="proto-body" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select id="android-ovpn-proto">
+                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
+                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="genAndDownloadOvpn('android-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('android-ikev2')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--accent-text);margin-right:6px"></i>IKEv2 — fast, handles roaming well</div><div class="proto-header-sub">Install: StrongSwan VPN Client from Play Store</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="android-ikev2" class="proto-body" style="display:none">
+            <div class="info-grid" id="android-ikev2-info"></div>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Open StrongSwan → Add VPN Profile → IKEv2 EAP (Username/Password) → fill in the details above</p>
+            <button class="btn primary" onclick="genAndDownloadSswan()"><i class="ti ti-download"></i> Download .sswan (StrongSwan profile)</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('android-l2tp')">
+            <div><div class="proto-header-title"><i class="ti ti-network" style="color:var(--muted);margin-right:6px"></i>L2TP/IPsec — built-in, no app needed</div><div class="proto-header-sub">Settings → Network → VPN → Add</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="android-l2tp" class="proto-body" style="display:none">
+            <div class="info-grid" id="android-l2tp-info"></div>
+            <p style="font-size:11px;color:var(--muted)">Settings → Network & Internet → VPN → + → L2TP/IPsec PSK → fill in details above</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- iOS -->
+      <div id="device-ios" class="device-panel">
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('ios-wg')">
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest, recommended</div><div class="proto-header-sub">Install: WireGuard app from App Store</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="ios-wg" class="proto-body">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf and import in WireGuard app → + → Create from file or archive</p>
+            <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('ios-ovpn')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN</div><div class="proto-header-sub">Install: OpenVPN Connect from App Store</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="ios-ovpn" class="proto-body" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select id="ios-ovpn-proto">
+                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
+                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="genAndDownloadOvpn('ios-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('ios-ikev2')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--accent-text);margin-right:6px"></i>IKEv2 — built-in, handles roaming perfectly</div><div class="proto-header-sub">Settings → General → VPN → Add VPN Configuration</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="ios-ikev2" class="proto-body" style="display:none">
+            <div class="info-grid" id="ios-ikev2-info"></div>
+            <button class="btn primary" onclick="genIosMobileconfig('ikev2')"><i class="ti ti-download"></i> Download .mobileconfig (one-tap install)</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('ios-l2tp')">
+            <div><div class="proto-header-title"><i class="ti ti-network" style="color:var(--muted);margin-right:6px"></i>L2TP/IPsec — built-in</div><div class="proto-header-sub">Settings → General → VPN</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="ios-l2tp" class="proto-body" style="display:none">
+            <div class="info-grid" id="ios-l2tp-info"></div>
+            <button class="btn primary" onclick="genIosMobileconfig('l2tp')"><i class="ti ti-download"></i> Download .mobileconfig (one-tap install)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- WINDOWS -->
+      <div id="device-windows" class="device-panel">
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('win-wg')">
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest, recommended</div><div class="proto-header-sub">Install: WireGuard for Windows from wireguard.com</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="win-wg" class="proto-body">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Open WireGuard → Add Tunnel → Import tunnel(s) from file → select the .conf</p>
+            <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('win-ovpn')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN</div><div class="proto-header-sub">Install: OpenVPN Connect or OpenVPN GUI</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="win-ovpn" class="proto-body" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select id="win-ovpn-proto">
+                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
+                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="genAndDownloadOvpn('win-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('win-ikev2')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--accent-text);margin-right:6px"></i>IKEv2 — built-in Windows VPN</div><div class="proto-header-sub">No app needed — uses Windows built-in VPN client</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="win-ikev2" class="proto-body" style="display:none">
+            <div class="info-grid" id="win-ikev2-info"></div>
+            <button class="btn primary" onclick="genWinPsScript('ikev2')"><i class="ti ti-download"></i> Download PowerShell setup script</button>
+            <p style="font-size:10px;color:var(--hint);margin-top:8px">Run the .ps1 script as Administrator to auto-configure the VPN connection</p>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('win-l2tp')">
+            <div><div class="proto-header-title"><i class="ti ti-network" style="color:var(--muted);margin-right:6px"></i>L2TP/IPsec — built-in Windows VPN</div><div class="proto-header-sub">No app needed</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="win-l2tp" class="proto-body" style="display:none">
+            <div class="info-grid" id="win-l2tp-info"></div>
+            <button class="btn primary" onclick="genWinPsScript('l2tp')"><i class="ti ti-download"></i> Download PowerShell setup script</button>
+            <p style="font-size:10px;color:var(--hint);margin-top:8px">Run the .ps1 script as Administrator to auto-configure the VPN connection</p>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('win-sstp')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>SSTP — built-in, best for corporate firewalls</div><div class="proto-header-sub">Uses port 443 — works through almost any firewall</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="win-sstp" class="proto-body" style="display:none">
+            <div class="info-grid" id="win-sstp-info"></div>
+            <button class="btn primary" onclick="genWinPsScript('sstp')"><i class="ti ti-download"></i> Download PowerShell setup script</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- macOS -->
+      <div id="device-macos" class="device-panel">
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('mac-wg')">
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest, recommended</div><div class="proto-header-sub">Install: WireGuard from Mac App Store</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="mac-wg" class="proto-body">
+            <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('mac-ovpn')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN</div><div class="proto-header-sub">Install: Tunnelblick (free) or OpenVPN Connect</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="mac-ovpn" class="proto-body" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select id="mac-ovpn-proto">
+                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
+                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="genAndDownloadOvpn('mac-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('mac-ikev2')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--accent-text);margin-right:6px"></i>IKEv2 — built-in macOS</div><div class="proto-header-sub">System Preferences → Network → +</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="mac-ikev2" class="proto-body" style="display:none">
+            <div class="info-grid" id="mac-ikev2-info"></div>
+            <button class="btn primary" onclick="genIosMobileconfig('ikev2')"><i class="ti ti-download"></i> Download .mobileconfig (one-tap install)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- UniFi -->
+      <div id="device-unifi" class="device-panel">
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('unifi-ovpn')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN — recommended for UniFi</div><div class="proto-header-sub">Network → VPN → VPN Client → Add → OpenVPN</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="unifi-ovpn" class="proto-body">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select id="unifi-ovpn-proto">
+                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
+                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="genAndDownloadOvpn('unifi-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn for UniFi</button>
+            <p style="font-size:11px;color:var(--muted);margin-top:10px">In UniFi: Network → VPN → VPN Client → Add → OpenVPN → upload the .ovpn file</p>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('unifi-wg')">
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — for UniFi gateways with WG support</div><div class="proto-header-sub">Network → VPN → VPN Client → Add → WireGuard</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="unifi-wg" class="proto-body" style="display:none">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf and upload to UniFi: Network → VPN → VPN Client → WireGuard → upload config</p>
+            <button class="btn primary" onclick="dlWgConf(true)"><i class="ti ti-download"></i> Download WireGuard .conf for UniFi</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linux -->
+      <div id="device-linux" class="device-panel">
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('linux-wg')">
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest</div><div class="proto-header-sub">sudo apt install wireguard</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="linux-wg" class="proto-body">
+            <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
+            <div class="config-box" style="margin-top:10px"># Install WireGuard
+sudo apt install wireguard
+
+# Copy the downloaded .conf to:
+sudo cp peer1.conf /etc/wireguard/wg0.conf
+
+# Connect:
+sudo wg-quick up wg0
+
+# Auto-start on boot:
+sudo systemctl enable wg-quick@wg0</div>
+          </div>
+        </div>
+        <div class="proto-section">
+          <div class="proto-header" onclick="toggleProto('linux-ovpn')">
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN</div><div class="proto-header-sub">sudo apt install openvpn</div></div>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div id="linux-ovpn" class="proto-body" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select id="linux-ovpn-proto">
+                <option value="udp">UDP :${CFG.ports.ovpnUdp}</option>
+                <option value="tcp">TCP :${CFG.ports.ovpnTcp}</option>
+              </select>
+            </div>
+            <button class="btn primary" onclick="genAndDownloadOvpn('linux-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
+            <div class="config-box" style="margin-top:10px"># Connect:
+sudo openvpn --config client.ovpn</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end export page -->
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-adduser" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-title">Add VPN User</div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Username</label>
+        <input type="text" id="nu-name" placeholder="alice">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Password</label>
+        <input type="password" id="nu-pass" placeholder="strong password">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">Display Name (optional)</label>
+      <input type="text" id="nu-display" placeholder="Alice Smith">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-adduser')">Cancel</button>
+      <button class="btn primary" onclick="createUser()"><i class="ti ti-plus"></i> Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVER CONFIGURATION — Edit these values when deploying on a new server
+// ═══════════════════════════════════════════════════════════════════════════
+const CFG = {
+  // Your server's public IP or domain name
+  serverIP: '45.79.25.46',
+
+  // SoftEther ports (must match docker-compose.yml)
+  ports: {
+    ovpnUdp:  9194,   // OpenVPN UDP
+    ovpnTcp:  9443,   // OpenVPN TCP + SSL-VPN + SSTP
+    sslVpn:   9992,   // SoftEther SSL-VPN alternate
+    l2tp:     9701,   // L2TP/IPsec
+    ikev2:    9000,   // IKEv2 (ISAKMP)
+    ikev2Nat: 9500,   // IKEv2 NAT-T
+    jsonRpc:  9555,   // JSON-RPC admin API
+    webUi:    9765,   // Web UI port
+  },
+
+  // WireGuard port (must match docker-compose.yml)
+  wgPort: 51820,
+
+  // SoftEther hub name (auto-detected on login, but set here as fallback)
+  hubName: 'DEFAULT',
+};
+// ═══════════════════════════════════════════════════════════════════════════
+
+const S = { host: CFG.serverIP, pass: '', hub: CFG.hubName, users: [], sessions: [], cert: '' };
+
+// ── API ─────────────────────────────────────────────────────────────────────
+async function api(method, params = {}) {
+  const r = await fetch('/api/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-VPNADMIN-PASSWORD': S.pass,
+      'X-VPNADMIN-HUBNAME': ''
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id: '1', method, params })
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message || 'API error');
+  return d.result;
+}
+
+// ── Login ───────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Connecting...';
+  document.getElementById('login-err').classList.remove('show');
+  S.host = document.getElementById('f-host').value.trim();
+  S.pass = document.getElementById('f-pass').value;
+  if (!S.host) { showErr('Enter your server public IP'); btn.disabled=false; btn.innerHTML='<i class="ti ti-login"></i> Connect'; return; }
+  try {
+    await api('Test', { IntValue_u32: 0 });
+    const hubs = await api('EnumHub', {});
+    if (hubs.HubList && hubs.HubList.length > 0) S.hub = hubs.HubList[0].HubName_str;
+    // Pre-fetch cert
+    try {
+      const certRes = await api('GetServerCert', {});
+      const b64 = certRes.Cert_bin;
+      const lines = b64.match(/.{1,64}/g) || [];
+      S.cert = '-----BEGIN CERTIFICATE-----\n' + lines.join('\n') + '\n-----END CERTIFICATE-----';
+    } catch(e) {}
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('h-host').textContent = S.host + '  ·  Hub: ' + S.hub;
+    loadDashboard();
+    loadUserList();
+    updateInfoPanels();
+  } catch(e) {
+    showErr('Connection failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-login"></i> Connect';
+  }
+}
+
+function showErr(msg) {
+  const e = document.getElementById('login-err');
+  e.textContent = msg; e.classList.add('show');
+}
+
+document.getElementById('f-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogout() {
+  S.pass = ''; S.users = []; S.sessions = []; S.cert = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('f-pass').value = '';
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'users') loadUserList();
+  if (name === 'sessions') loadSessions();
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'export') { populateExportUsers(); updateInfoPanels(); }
+}
+
+function switchDevice(name, el) {
+  document.querySelectorAll('.device-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.device-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('device-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+function toggleProto(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const info = await api('GetServerInfo', {});
+    document.getElementById('s-version').textContent = info.ServerVersionString_str ?? '—';
+  } catch(e) {}
+  try {
+    const status = await api('GetServerStatus', {});
+    document.getElementById('s-users').textContent = status.NumUsers_u32 ?? '—';
+    if (status.StartTime_dt) {
+      const ms = Date.now() - new Date(status.StartTime_dt).getTime();
+      const days = Math.floor(ms / 86400000);
+      const hours = Math.floor((ms % 86400000) / 3600000);
+      document.getElementById('s-uptime').textContent = days > 0 ? days + 'd' : hours + 'h';
+    }
+  } catch(e) {}
+  try {
+    const res = await api('EnumSession', { HubName_str: S.hub });
+    S.sessions = (res.SessionList ?? []).filter(s => !s.SecureNATMode_bool);
+    document.getElementById('s-sessions').textContent = S.sessions.length;
+    const tbody = document.getElementById('dash-sessions');
+    if (!S.sessions.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 0">No active client sessions</td></tr>';
+    } else {
+      tbody.innerHTML = S.sessions.map(s => `<tr>
+        <td style="font-weight:500">${s.Username_str ?? '—'}</td>
+        <td><span class="badge purple">${s.BridgeMode_bool?'Bridge':s.LinkMode_bool?'Cascade':'Client'}</span></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${s.ClientIP_ip !== '0.0.0.0' ? s.ClientIP_ip : '—'}</td>
+        <td style="color:var(--muted)">${s.CreatedTime_dt ? timeSince(new Date(s.CreatedTime_dt)) : '—'}</td>
+        <td><button class="btn sm danger" onclick="kickSession('${s.Name_str}')"><i class="ti ti-plug-x"></i> Kick</button></td>
+      </tr>`).join('');
+    }
+  } catch(e) {}
+}
+
+// ── Sessions ─────────────────────────────────────────────────────────────────
+async function loadSessions() {
+  const tbody = document.getElementById('sessions-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
+  try {
+    const res = await api('EnumSession', { HubName_str: S.hub });
+    S.sessions = (res.SessionList ?? []).filter(s => !s.SecureNATMode_bool);
+    if (!S.sessions.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">No active client sessions</td></tr>';
+      return;
+    }
+    tbody.innerHTML = S.sessions.map(s => `<tr>
+      <td style="padding-left:20px;font-size:10px;color:var(--muted)">${s.Name_str}</td>
+      <td style="font-weight:500">${s.Username_str ?? '—'}</td>
+      <td><span class="badge purple">${s.BridgeMode_bool?'Bridge':s.LinkMode_bool?'Cascade':'Client'}</span></td>
+      <td style="font-size:11px">${s.ClientIP_ip !== '0.0.0.0' ? s.ClientIP_ip : '—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${s.PacketNum_u64 ?? 0} pkts</td>
+      <td style="padding-right:20px"><button class="btn sm danger" onclick="kickSession('${s.Name_str}')"><i class="ti ti-plug-x"></i> Kick</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--red-text);padding:14px 20px">Error: ' + e.message + '</td></tr>';
+  }
+}
+
+async function kickSession(name) {
+  if (!confirm('Disconnect session: ' + name + '?')) return;
+  try {
+    await api('DeleteSession', { HubName_str: S.hub, Name_str: name });
+    toast('Session disconnected', 'success');
+    loadSessions(); loadDashboard();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── Users ────────────────────────────────────────────────────────────────────
+async function loadUserList() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
+  try {
+    const res = await api('EnumUser', { HubName_str: S.hub });
+    S.users = res.UserList ?? [];
+    document.getElementById('s-users').textContent = S.users.length;
+    if (!S.users.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">No users</td></tr>'; return; }
+    tbody.innerHTML = S.users.map(u => {
+      const auth = {0:'Anon',1:'Password',2:'Cert',3:'RootCert',4:'Radius',5:'NT'}[u.AuthType_u32] ?? '?';
+      const enabled = !u.DenyAccess_bool;
+      const lastLogin = u.LastLoginTime_dt && !u.LastLoginTime_dt.startsWith('1970')
+        ? new Date(u.LastLoginTime_dt).toLocaleDateString() : 'Never';
+      return `<tr>
+        <td style="padding-left:20px"><div style="font-weight:500">${u.Name_str}</div><div style="font-size:10px;color:var(--muted)">${u.Realname_utf||'—'}</div></td>
+        <td><span class="badge amber">${auth}</span></td>
+        <td><span class="badge ${enabled?'green':'red'}">${enabled?'Active':'Disabled'}</span></td>
+        <td style="color:var(--muted)">${u.NumLogin_u32??0}</td>
+        <td style="color:var(--muted)">${lastLogin}</td>
+        <td style="padding-right:20px"><button class="btn sm danger" onclick="deleteUser('${u.Name_str}')"><i class="ti ti-trash"></i></button></td>
+      </tr>`;
+    }).join('');
+    populateExportUsers();
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--red-text);padding:14px 20px">Error: ' + e.message + '</td></tr>';
+  }
+}
+
+async function createUser() {
+  const name = document.getElementById('nu-name').value.trim();
+  const pass = document.getElementById('nu-pass').value;
+  const display = document.getElementById('nu-display').value.trim();
+  if (!name) { toast('Username required', 'error'); return; }
+  if (!pass) { toast('Password required', 'error'); return; }
+  try {
+    await api('CreateUser', {
+      HubName_str: S.hub, Name_str: name, Realname_utf: display || name,
+      Note_utf: '', ExpireTime_dt: '1970-01-01T00:00:00.000Z',
+      AuthType_u32: 1, Auth_Password_str: pass
+    });
+    toast('User ' + name + ' created', 'success');
+    closeModal('modal-adduser');
+    document.getElementById('nu-name').value = '';
+    document.getElementById('nu-pass').value = '';
+    document.getElementById('nu-display').value = '';
+    loadUserList();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function deleteUser(name) {
+  if (!confirm('Delete user "' + name + '"?')) return;
+  try {
+    await api('DeleteUser', { HubName_str: S.hub, Name_str: name });
+    toast('User deleted', 'success'); loadUserList();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── Config Export ────────────────────────────────────────────────────────────
+function populateExportUsers() {
+  const sel = document.getElementById('exp-user');
+  if (!sel) return;
+  sel.innerHTML = S.users.length
+    ? S.users.map(u => `<option value="${u.Name_str}">${u.Name_str}</option>`).join('')
+    : '<option value="vpnuser">vpnuser</option>';
+}
+
+function getExportUser() { return document.getElementById('exp-user').value || 'vpnuser'; }
+function getWgPeer() { return document.getElementById('exp-wg-peer').value || 'peer1'; }
+
+function updateInfoPanels() {
+  const h = S.host || 'YOUR_SERVER_IP';
+  const user = getExportUser();
+  const ikev2Info = `<div class="info-key">Server</div><div class="info-val">${h}</div>
+    <div class="info-key">Port</div><div class="info-val">${CFG.ports.ikev2} (UDP)</div>
+    <div class="info-key">VPN Type</div><div class="info-val">IKEv2/IPsec</div>
+    <div class="info-key">Auth</div><div class="info-val">EAP Username/Password</div>
+    <div class="info-key">Username</div><div class="info-val">${user}</div>
+    <div class="info-key">Password</div><div class="info-val">(set in USERS= docker-compose.yml)</div>`;
+  const l2tpInfo = `<div class="info-key">Server</div><div class="info-val">${h}</div>
+    <div class="info-key">Port</div><div class="info-val">${CFG.ports.l2tp} (UDP)</div>
+    <div class="info-key">VPN Type</div><div class="info-val">L2TP/IPsec PSK</div>
+    <div class="info-key">Pre-shared Key</div><div class="info-val">(PSK= in docker-compose.yml)</div>
+    <div class="info-key">Username</div><div class="info-val">${user}</div>
+    <div class="info-key">Password</div><div class="info-val">(set in USERS= docker-compose.yml)</div>`;
+  const sstpInfo = `<div class="info-key">Server</div><div class="info-val">https://${h}:${CFG.ports.ovpnTcp}</div>
+    <div class="info-key">VPN Type</div><div class="info-val">SSTP</div>
+    <div class="info-key">Username</div><div class="info-val">${user}</div>
+    <div class="info-key">Password</div><div class="info-val">(set in USERS= docker-compose.yml)</div>`;
+  ['android','ios','win','mac'].forEach(d => {
+    const ik = document.getElementById(d+'-ikev2-info');
+    const lt = document.getElementById(d+'-l2tp-info');
+    const ss = document.getElementById(d+'-sstp-info');
+    if (ik) ik.innerHTML = ikev2Info;
+    if (lt) lt.innerHTML = l2tpInfo;
+    if (ss) ss.innerHTML = sstpInfo;
+  });
+}
+
+document.getElementById('exp-user').addEventListener('change', updateInfoPanels);
+
+// ── OpenVPN config generator ─────────────────────────────────────────────────
+async function genOvpnConfig(proto) {
+  if (!S.cert) {
+    try {
+      const certRes = await api('GetServerCert', {});
+      const b64 = certRes.Cert_bin;
+      const lines = b64.match(/.{1,64}/g) || [];
+      S.cert = '-----BEGIN CERTIFICATE-----\n' + lines.join('\n') + '\n-----END CERTIFICATE-----';
+    } catch(e) { throw new Error('Could not fetch server certificate: ' + e.message); }
+  }
+  const user = getExportUser();
+  const isUdp = proto === 'udp';
+  return `# SoftEther VPN — OpenVPN config
+# User: ${user}  Hub: ${S.hub}
+# Generated: ${new Date().toISOString()}
+
+client
+dev tun
+proto ${isUdp ? 'udp' : 'tcp'}
+remote ${S.host} ${isUdp ? CFG.ports.ovpnUdp : CFG.ports.ovpnTcp}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-CBC
+auth SHA256
+auth-user-pass
+verb 3
+<ca>
+${S.cert}
+</ca>`;
+}
+
+async function genAndDownloadOvpn(selectId) {
+  const proto = document.getElementById(selectId).value;
+  const btn = event.target.closest('button');
+  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Generating...';
+  try {
+    const config = await genOvpnConfig(proto);
+    dlFile(config, 'client.ovpn', 'text/plain');
+    toast('OpenVPN config downloaded', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="ti ti-download"></i> Download .ovpn'; }
+}
+
+// ── WireGuard config download ─────────────────────────────────────────────────
+async function getWgConfText(peer) {
+  const r = await fetch('/wg/' + peer + '.conf');
+  if (!r.ok) throw new Error('Peer config not found — check PEERS= in docker-compose.yml and that the container has started');
+  return await r.text();
+}
+
+function fixWgConfForUnifi(text) {
+  // UniFi requires Address = x.x.x.x/32 format and no ListenPort
+  // Handle both "10.13.13.2/24" and "10.13.13.2" (no mask)
+  return text
+    .replace(/^(Address\s*=\s*\d+\.\d+\.\d+\.\d+)(\/\d+)?/m, '$1/32')
+    .replace(/^ListenPort\s*=.*$/m, '');
+}
+
+async function dlWgConf(forUnifi) {
+  const peer = getWgPeer();
+  const btn = event.target.closest('button');
+  const origLabel = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Fetching...';
+  try {
+    let text = await getWgConfText(peer);
+    if (forUnifi) text = fixWgConfForUnifi(text);
+    dlFile(text, peer + '.conf', 'text/plain');
+    toast('WireGuard config downloaded', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = origLabel; }
+}
+
+// ── iOS/macOS .mobileconfig ───────────────────────────────────────────────────
+function genIosMobileconfig(type) {
+  const h = S.host;
+  const user = getExportUser();
+  const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&0x3|0x8).toString(16)});
+  let payloadContent = '';
+  if (type === 'ikev2') {
+    payloadContent = `<dict>
+      <key>AuthenticationMethod</key><string>None</string>
+      <key>ChildSecurityAssociationParameters</key>
+      <dict>
+        <key>EncryptionAlgorithm</key><string>AES-256</string>
+        <key>IntegrityAlgorithm</key><string>SHA2-256</string>
+        <key>DiffieHellmanGroup</key><integer>14</integer>
+      </dict>
+      <key>DeadPeerDetectionRate</key><string>Medium</string>
+      <key>DisableMOBIKE</key><integer>0</integer>
+      <key>DisableRedirect</key><integer>0</integer>
+      <key>EnableCertificateRevocationCheck</key><integer>0</integer>
+      <key>EnablePFS</key><integer>0</integer>
+      <key>ExtendedAuthEnabled</key><integer>1</integer>
+      <key>IKESecurityAssociationParameters</key>
+      <dict>
+        <key>EncryptionAlgorithm</key><string>AES-256</string>
+        <key>IntegrityAlgorithm</key><string>SHA2-256</string>
+        <key>DiffieHellmanGroup</key><integer>14</integer>
+      </dict>
+      <key>LocalIdentifier</key><string>${user}</string>
+      <key>PayloadDescription</key><string>IKEv2 VPN</string>
+      <key>PayloadDisplayName</key><string>IKEv2 VPN</string>
+      <key>PayloadIdentifier</key><string>com.vpn.ikev2.${uuid()}</string>
+      <key>PayloadType</key><string>com.apple.vpn.managed</string>
+      <key>PayloadUUID</key><string>${uuid()}</string>
+      <key>PayloadVersion</key><integer>1</integer>
+      <key>RemoteAddress</key><string>${h}</string>
+      <key>RemoteIdentifier</key><string>${h}</string>
+      <key>AuthName</key><string>${user}</string>
+      <key>UserDefinedName</key><string>VPN (IKEv2)</string>
+      <key>VPNType</key><string>IKEv2</string>
+    </dict>`;
+  } else {
+    payloadContent = `<dict>
+      <key>AuthenticationMethod</key><string>SharedSecret</string>
+      <key>L2TP</key>
+      <dict>
+        <key>AuthName</key><string>${user}</string>
+      </dict>
+      <key>PayloadDescription</key><string>L2TP VPN</string>
+      <key>PayloadDisplayName</key><string>L2TP VPN</string>
+      <key>PayloadIdentifier</key><string>com.vpn.l2tp.${uuid()}</string>
+      <key>PayloadType</key><string>com.apple.vpn.managed</string>
+      <key>PayloadUUID</key><string>${uuid()}</string>
+      <key>PayloadVersion</key><integer>1</integer>
+      <key>PPP</key>
+      <dict>
+        <key>AuthName</key><string>${user}</string>
+        <key>CommRemoteAddress</key><string>${h}</string>
+      </dict>
+      <key>IPSec</key>
+      <dict>
+        <key>AuthenticationMethod</key><string>SharedSecret</string>
+        <key>RemoteAddress</key><string>${h}</string>
+      </dict>
+      <key>UserDefinedName</key><string>VPN (L2TP)</string>
+      <key>VPNType</key><string>L2TP</string>
+    </dict>`;
+  }
+
+  const config = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    ${payloadContent}
+  </array>
+  <key>PayloadDisplayName</key><string>VPN Configuration</string>
+  <key>PayloadIdentifier</key><string>com.vpn.profile.${uuid()}</string>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadUUID</key><string>${uuid()}</string>
+  <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`;
+
+  dlFile(config, 'vpn-' + type + '.mobileconfig', 'application/x-apple-aspen-config');
+  toast('.mobileconfig downloaded — AirDrop or email it to your device', 'success');
+}
+
+// ── StrongSwan .sswan for Android ────────────────────────────────────────────
+function genAndDownloadSswan() {
+  const h = S.host;
+  const user = getExportUser();
+  const config = JSON.stringify({
+    uuid: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+    name: 'VPN (IKEv2)',
+    type: 'ikev2-eap',
+    remote: { addr: h, port: String(CFG.ports.ikev2) },
+    local: { eap_id: user },
+    ike_proposal: 'aes256-sha256-modp2048',
+    esp_proposal: 'aes256-sha256',
+    split_tunneling: false
+  }, null, 2);
+  dlFile(config, 'vpn-ikev2.sswan', 'application/json');
+  toast('StrongSwan profile downloaded', 'success');
+}
+
+// ── Windows PowerShell scripts ────────────────────────────────────────────────
+function genWinPsScript(type) {
+  const h = S.host;
+  const user = getExportUser();
+  let script = '';
+  if (type === 'ikev2') {
+    script = `# VPN Setup Script — IKEv2
+# Run as Administrator in PowerShell
+# User: ${user}
+
+Add-VpnConnection \`
+  -Name "VPN (IKEv2)" \`
+  -ServerAddress "${h}" \`
+  -TunnelType "IKEv2" \`
+  -AuthenticationMethod "EAP" \`
+  -EncryptionLevel "Required" \`
+  -RememberCredential \`
+  -PassThru
+
+# Set the username
+$vpn = Get-VpnConnection -Name "VPN (IKEv2)"
+Set-VpnConnectionUsernamePassword -ConnectionName "VPN (IKEv2)" -UserName "${user}"
+
+Write-Host "VPN configured. Connect via Settings -> Network -> VPN -> VPN (IKEv2)"
+Write-Host "Username: ${user}"
+Write-Host "Password: (the one set in docker-compose.yml USERS=)"`;
+  } else if (type === 'l2tp') {
+    script = `# VPN Setup Script — L2TP/IPsec
+# Run as Administrator in PowerShell
+# User: ${user}
+
+Add-VpnConnection \`
+  -Name "VPN (L2TP)" \`
+  -ServerAddress "${h}" \`
+  -TunnelType "L2tp" \`
+  -AuthenticationMethod "CHAP","MSChapv2" \`
+  -L2tpPsk "(your PSK from docker-compose.yml PSK=)" \`
+  -EncryptionLevel "Optional" \`
+  -RememberCredential \`
+  -PassThru
+
+Write-Host "VPN configured. Connect via Settings -> Network -> VPN -> VPN (L2TP)"
+Write-Host "Username: ${user}"
+Write-Host "Password: (the one set in docker-compose.yml USERS=)"`;
+  } else if (type === 'sstp') {
+    script = `# VPN Setup Script — SSTP
+# Run as Administrator in PowerShell
+# User: ${user}
+
+Add-VpnConnection \`
+  -Name "VPN (SSTP)" \`
+  -ServerAddress "${h}" \`
+  -TunnelType "Sstp" \`
+  -AuthenticationMethod "CHAP","MSChapv2" \`
+  -EncryptionLevel "Required" \`
+  -RememberCredential \`
+  -PassThru
+
+Write-Host "VPN configured. Connect via Settings -> Network -> VPN -> VPN (SSTP)"
+Write-Host "Username: ${user}"
+Write-Host "Password: (the one set in docker-compose.yml USERS=)"
+Write-Host "Note: SSTP uses port ${CFG.ports.ovpnTcp} which maps to SoftEther SSL-VPN"`;
+  }
+  dlFile(script, 'setup-vpn-' + type + '.ps1', 'text/plain');
+  toast('PowerShell script downloaded — run as Administrator', 'success');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function dlFile(content, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+let toastTimer;
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function timeSince(date) {
+  const s = Math.floor((Date.now() - date) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+// ── Init port labels in HTML dropdowns ──────────────────────────────────────
+function initPorts() {
+  // Update all protocol option labels with CFG ports
+  document.querySelectorAll('select[id$="-proto"] option').forEach(opt => {
+    if (opt.value === 'udp') opt.textContent = `UDP :${CFG.ports.ovpnUdp} — faster`;
+    if (opt.value === 'tcp') opt.textContent = `TCP :${CFG.ports.ovpnTcp} — censorship bypass`;
+  });
+  // Linux option labels (no "censorship bypass" suffix)
+  const lo = document.getElementById('linux-ovpn-proto');
+  if (lo) {
+    lo.options[0].textContent = `UDP :${CFG.ports.ovpnUdp}`;
+    lo.options[1].textContent = `TCP :${CFG.ports.ovpnTcp}`;
+  }
+  // Pre-fill host field with CFG.serverIP
+  const hostField = document.getElementById('f-host');
+  if (hostField) hostField.value = CFG.serverIP;
+}
+initPorts();
+</script>
+</body>
+</html>
