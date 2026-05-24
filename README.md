@@ -9,29 +9,27 @@ AND CHANGE THE CONFIGS IN THE `index.html` with `nano ~/softether-vpn/` and do `
 Starting:
 ```
 docker compose up -d --build
-docker compose down
-docker compose up -d
 ```
 
 File paths:
 ```
 ~/softether-vpn/
-├── .env
+├── .env                          ← edit this for each server
 ├── docker-compose.yml
-├── vpn_server.config
+├── vpn_server.config             ← touch this on first run
 ├── softether/
 │   ├── Dockerfile
 │   └── entrypoint-wrapper.sh
 ├── wg-api/
 │   ├── Dockerfile
 │   └── app.py
-├── wg-data/
+├── wg-data/                      ← auto-created by WireGuard
 └── ui/
-    ├── index.html
+    ├── index.html                ← edit CFG block for each server
     └── nginx.conf
 ```
 
-When changing the .env
+After changing the `.env` if you wanted to change ports, etc.
 Use
 ```
 cd ~/softether-vpn
