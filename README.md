@@ -8,6 +8,8 @@ AND CHANGE THE CONFIGS IN THE `index.html` with `nano ~/softether-vpn/` and do `
 
 Starting:
 ```
+touch ~/softether-vpn/vpn_server.config
+chmod -R a+rX ~/softether-vpn/wg-data/
 docker compose up -d --build
 ```
 
