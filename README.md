@@ -17,7 +17,7 @@ File paths:
 ├── .env
 ├── docker-compose.yml
 ├── vpn_server.config
-├── softether/                ← NEW
+├── softether/
 │   ├── Dockerfile
 │   └── entrypoint-wrapper.sh
 ├── wg-api/
