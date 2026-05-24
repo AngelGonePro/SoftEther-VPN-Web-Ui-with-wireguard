@@ -36,6 +36,6 @@ cd ~/softether-vpn
 docker compose down
 rm vpn_server.config
 touch vpn_server.config
-docker compose up -d
+docker compose up -d --build
 ```
 But redownload configs after as it will make whole new ones.
