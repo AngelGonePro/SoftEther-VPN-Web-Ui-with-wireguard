@@ -1,4 +1,4 @@
-# SoftEther-VPN-Web-Ui-with-wireguard
+# STILL IN BETA DEVELOPMENT, DO NOT USE | SoftEther-VPN-Web-Ui-with-wireguard
 SoftEther VPN Web Ui With Wireguard Support
 
 PLEASE WAIT 20 SECONDS AFTER CONTAINER FULLY STARTS TO LOGIN
