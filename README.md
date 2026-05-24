@@ -1,5 +1,7 @@
 # WARNING: STILL IN BETA DEVELOPMENT | SoftEther-VPN-Web-Ui-with-wireguard
-SoftEther VPN Web Ui With Wireguard Support
+SoftEther VPN Web Ui With Wireguard Support and Custom port config
+
+`Full_VPN_Config.zip` has all the files inside if you use `curl` on linux or download it.
 
 ---
 
