@@ -1,4 +1,4 @@
-# STILL IN BETA DEVELOPMENT, DO NOT USE | SoftEther-VPN-Web-Ui-with-wireguard
+# WARNING: STILL IN BETA DEVELOPMENT | SoftEther-VPN-Web-Ui-with-wireguard
 SoftEther VPN Web Ui With Wireguard Support
 
 ---
