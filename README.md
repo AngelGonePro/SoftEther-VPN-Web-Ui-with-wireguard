@@ -5,9 +5,11 @@ For IPs and port configs, it's all in the .env file, use `nano .env`
 AND CHANGE THE CONFIGS IN THE `index.html` with `nano ~/softether-vpn/` and do `ctrl+W` and search for `const CFG = {` WHICH INCLUDES COPYING the WireGuard API Key from the `.env` to the `wgApiKey` under `const CFG = {` in the `index.html`!
 
 Starting:
-`docker compose up -d --build`
-`docker compose down`
-`docker compose up -d`
+```
+docker compose up -d --build
+docker compose down
+docker compose up -d
+```
 
 File paths:
 ```
