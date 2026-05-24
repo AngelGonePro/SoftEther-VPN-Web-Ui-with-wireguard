@@ -1,8 +1,6 @@
 # STILL IN BETA DEVELOPMENT, DO NOT USE | SoftEther-VPN-Web-Ui-with-wireguard
 SoftEther VPN Web Ui With Wireguard Support
 
-Yes, just changing `CFG` and `.env` is all you need. Here's the complete guide:
-
 ---
 
 ## File Structure
