@@ -56,20 +56,35 @@ services:
     networks:
       - vpn-net
 
+  # ─── WireGuard Peer Management API ──────────────────────────────────────────
+  wg-api:
+    build: ./wg-api
+    container_name: wg-api
+    restart: unless-stopped
+    environment:
+      - WG_API_KEY=${WG_API_KEY}
+      - PORT=8099
+    volumes:
+      - ./wg-data:/wg-data
+      - .:/compose                          # Access to .env for PEERS= updates
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket to restart wireguard
+    networks:
+      - vpn-net
+
   # ─── Web UI ──────────────────────────────────────────────────────────────────
-  # Binds to 0.0.0.0 — reachable from any IP (local, public, IPv6) automatically
   vpn-ui:
     image: nginx:alpine
     container_name: softether-ui
     restart: unless-stopped
     ports:
-      - "${PORT_WEBUI}:9765"       # Accessible from any IP on this port
+      - "${PORT_WEBUI}:9765"
     volumes:
       - ./ui/index.html:/usr/share/nginx/html/index.html:ro
       - ./ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./wg-data:/wg-data:ro
     depends_on:
       - softether
+      - wg-api
     networks:
       - vpn-net
 
