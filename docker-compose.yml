@@ -1,10 +1,14 @@
-# Copy .env.example to .env and edit before running docker compose up -d
+# ════════════════════════════════════════════════════════════════════
+# VPN Manager — SoftEther + WireGuard
+# Copy .env.example to .env and edit before running:
+#   docker compose up -d --build
+# ════════════════════════════════════════════════════════════════════
 
 services:
 
-  # ─── SoftEther VPN ──────────────────────────────────────────────────────────
+  # ─── SoftEther VPN (L2TP, IKEv2, OpenVPN, SSTP, SSL-VPN) ────────────────
   softether:
-    image: siomiz/softethervpn:latest
+    build: ./softether
     container_name: softether
     restart: unless-stopped
     cap_add:
@@ -27,7 +31,7 @@ services:
     networks:
       - vpn-net
 
-  # ─── WireGuard ──────────────────────────────────────────────────────────────
+  # ─── WireGuard VPN ───────────────────────────────────────────────────────
   wireguard:
     image: lscr.io/linuxserver/wireguard:latest
     container_name: wireguard
@@ -56,22 +60,24 @@ services:
     networks:
       - vpn-net
 
-  # ─── WireGuard Peer Management API ──────────────────────────────────────────
+  # ─── WireGuard Peer Management API ───────────────────────────────────────
   wg-api:
     build: ./wg-api
     container_name: wg-api
     restart: unless-stopped
     environment:
       - WG_API_KEY=${WG_API_KEY}
+      - WG_CONTAINER=wireguard
       - PORT=8099
+      - HOST_WG_DATA=${HOST_WG_DATA}
     volumes:
       - ./wg-data:/wg-data
-      - .:/compose                          # Access to .env for PEERS= updates
-      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket to restart wireguard
+      - .:/compose
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - vpn-net
 
-  # ─── Web UI ──────────────────────────────────────────────────────────────────
+  # ─── Web UI ───────────────────────────────────────────────────────────────
   vpn-ui:
     image: nginx:alpine
     container_name: softether-ui
