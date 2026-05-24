@@ -109,15 +109,6 @@ const CFG = {
 
 ---
 
-## Important Rules
-- **Never delete `vpn_server.config`** after first start — it saves all SoftEther settings
-- **Never run `docker compose down` + `rm vpn_server.config`** unless you want to reset everything
-- **To update files**: use `docker compose up -d --build` only — never `down` first
-- **To update just UI**: `docker compose restart vpn-ui`
-- **To update just wg-api**: `docker compose up -d --build wg-api`
-
----
-
 PLEASE WAIT 20 SECONDS AFTER CONTAINER FULLY STARTS TO LOGIN
 
 For IPs and port configs, it's all in the .env file, use `nano .env`
