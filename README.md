@@ -14,26 +14,19 @@ docker compose up -d
 File paths:
 ```
 ~/softether-vpn/
-├── .env                          ← your secrets and ports (copy from .env.example)
-├── .env.example                  ← template, safe to share
-├── docker-compose.yml            ← main compose file
-├── vpn_server.config             ← SoftEther config (touch this if empty)
-│
-├── wg-data/                      ← auto-created by WireGuard container
-│   ├── .peer_names.json          ← auto-created by wg-api when you rename peers
-│   ├── peer1/
-│   │   └── peer1.conf
-│   ├── peer2/
-│   │   └── peer2.conf
-│   └── ...
-│
-├── ui/                           ← web UI files
-│   ├── index.html
-│   └── nginx.conf
-│
-└── wg-api/                       ← WireGuard management API
-    ├── Dockerfile                ← exactly "Dockerfile", no extension
-    └── app.py
+├── .env
+├── docker-compose.yml
+├── vpn_server.config
+├── softether/                ← NEW
+│   ├── Dockerfile
+│   └── entrypoint-wrapper.sh
+├── wg-api/
+│   ├── Dockerfile
+│   └── app.py
+├── wg-data/
+└── ui/
+    ├── index.html
+    └── nginx.conf
 ```
 
 When changing the .env
