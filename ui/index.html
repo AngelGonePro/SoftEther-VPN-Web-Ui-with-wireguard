@@ -611,7 +611,7 @@ sudo systemctl enable wg-quick@wg0</div>
 // ═══════════════════════════════════════════════════════════════════════════
 const CFG = {
   // Your server's public IP or domain name
-  serverIP: 'cloud.cosmoscraft.net',
+  serverIP: 'YOUR_SERVER_IP_OR_DOMAIN',
 
   // SoftEther ports — must match .env
   ports: {
@@ -741,7 +741,7 @@ async function loadDashboard() {
   try {
     const s=await api('GetServerStatus',{});
     document.getElementById('s-users').textContent=s.NumUsers_u32??'—';
-    if(s.StartTime_dt){const ms=Date.now()-new Date(s.StartTime_dt).getTime();const d=Math.floor(ms/86400000);const h=Math.floor((ms%86400000)/3600000);document.getElementById('s-uptime').textContent=d>0?d+'d':h+'h';}
+    if(s.StartTime_dt){const ms=Date.now()-new Date(s.StartTime_dt).getTime();const d=Math.floor(ms/86400000);const h=Math.floor((ms%86400000)/3600000);const m=Math.floor((ms%3600000)/60000);document.getElementById('s-uptime').textContent=d>0?d+'d '+(h%24)+'h':h>0?h+'h '+m+'m':m+'m';}
   } catch(e){}
   try {
     const res=await api('EnumSession',{HubName_str:S.hub});
