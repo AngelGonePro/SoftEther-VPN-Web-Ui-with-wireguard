@@ -87,8 +87,6 @@ select option{background:var(--card)}
 .toast.error{border-color:#e24b4a40;color:var(--red-text)}
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .section-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text)}
-
-/* Export tabs */
 .device-tabs{display:flex;gap:0;border-bottom:0.5px solid var(--border);margin-bottom:20px;overflow-x:auto}
 .device-tab{padding:9px 16px;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s}
 .device-tab:hover{color:var(--text)}
@@ -122,7 +120,7 @@ select option{background:var(--card)}
     </div>
     <div class="form-group">
       <label class="form-label">SoftEther Admin Password (SPW)</label>
-      <input type="password" id="f-pass" placeholder="Password from docker-compose.yml">
+      <input type="password" id="f-pass" placeholder="Password from .env SE_SERVER_PASSWORD">
     </div>
     <button class="btn primary" style="width:100%;justify-content:center;padding:10px" onclick="doLogin()" id="login-btn">
       <i class="ti ti-login"></i> Connect
@@ -164,15 +162,7 @@ select option{background:var(--card)}
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">Active Protocols</div></div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>WireGuard :${CFG.wgPort}</span>
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>SSL-VPN :${CFG.ports.ovpnTcp}/:${CFG.ports.sslVpn}</span>
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>OpenVPN UDP :${CFG.ports.ovpnUdp}</span>
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>OpenVPN TCP :${CFG.ports.ovpnTcp}</span>
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>L2TP/IPsec :${CFG.ports.l2tp}</span>
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>IKEv2 :${CFG.ports.ikev2}/:${CFG.ports.ikev2Nat}</span>
-          <span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>SSTP :${CFG.ports.ovpnTcp}</span>
-        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" id="proto-badges"></div>
       </div>
       <div class="card">
         <div class="card-head">
@@ -182,6 +172,18 @@ select option{background:var(--card)}
         <table>
           <thead><tr><th>User</th><th>Type</th><th>Client IP</th><th>Since</th><th>Action</th></tr></thead>
           <tbody id="dash-sessions"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">WireGuard Peers</div>
+          <button class="btn sm" onclick="loadWgStats()"><i class="ti ti-refresh"></i> Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Peer</th><th>Name</th><th>Last Handshake</th><th>Received</th><th>Sent</th><th>Status</th></tr></thead>
+          <tbody id="wg-stats-tbody">
+            <tr><td colspan="6" style="color:var(--muted);padding:14px 0">Click Refresh to load WireGuard stats</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -234,11 +236,7 @@ select option{background:var(--card)}
 
     <!-- CONFIG EXPORT -->
     <div id="page-export" class="page">
-      <div class="section-head">
-        <div class="section-title">Config Export</div>
-      </div>
-
-      <!-- User selector -->
+      <div class="section-head"><div class="section-title">Config Export</div></div>
       <div class="card">
         <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px">
@@ -246,20 +244,11 @@ select option{background:var(--card)}
             <select id="exp-user"></select>
           </div>
           <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px">
-            <label class="form-label">WireGuard Peer #</label>
-            <select id="exp-wg-peer">
-              <option value="peer1">Peer 1</option>
-              <option value="peer2">Peer 2</option>
-              <option value="peer3">Peer 3</option>
-              <option value="peer4">Peer 4</option>
-              <option value="peer5">Peer 5</option>
-            </select>
-            <p style="font-size:10px;color:var(--hint);margin-top:4px">Add more peers by increasing WG_PEERS= in .env and restarting wireguard</p>
+            <label class="form-label">WireGuard Peer</label>
+            <select id="exp-wg-peer"><option value="peer1">peer1</option></select>
           </div>
         </div>
       </div>
-
-      <!-- Device tabs -->
       <div class="device-tabs">
         <div class="device-tab active" onclick="switchDevice('android',this)"><i class="ti ti-brand-android" style="margin-right:5px"></i>Android</div>
         <div class="device-tab" onclick="switchDevice('ios',this)"><i class="ti ti-brand-apple" style="margin-right:5px"></i>iOS</div>
@@ -277,22 +266,18 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="android-wg" class="proto-body">
-            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf file and import it in the WireGuard app → + → Import from file</p>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf and import in WireGuard app → + → Import from file</p>
             <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
           </div>
         </div>
         <div class="proto-section">
           <div class="proto-header" onclick="toggleProto('android-ovpn')">
-            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN — good compatibility</div><div class="proto-header-sub">Install: OpenVPN Connect from Play Store</div></div>
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>OpenVPN — good compatibility</div><div class="proto-header-sub">Install: OpenVPN for Android from Play Store</div></div>
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="android-ovpn" class="proto-body" style="display:none">
-            <div class="form-group">
-              <label class="form-label">Mode</label>
-              <select id="android-ovpn-proto">
-                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
-                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
-              </select>
+            <div class="form-group"><label class="form-label">Mode</label>
+              <select id="android-ovpn-proto"><option value="udp">UDP</option><option value="tcp">TCP</option></select>
             </div>
             <button class="btn primary" onclick="genAndDownloadOvpn('android-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
           </div>
@@ -304,7 +289,6 @@ select option{background:var(--card)}
           </div>
           <div id="android-ikev2" class="proto-body" style="display:none">
             <div class="info-grid" id="android-ikev2-info"></div>
-            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Open StrongSwan → Add VPN Profile → IKEv2 EAP (Username/Password) → fill in the details above</p>
             <button class="btn primary" onclick="genAndDownloadSswan()"><i class="ti ti-download"></i> Download .sswan (StrongSwan profile)</button>
           </div>
         </div>
@@ -315,7 +299,7 @@ select option{background:var(--card)}
           </div>
           <div id="android-l2tp" class="proto-body" style="display:none">
             <div class="info-grid" id="android-l2tp-info"></div>
-            <p style="font-size:11px;color:var(--muted)">Settings → Network & Internet → VPN → + → L2TP/IPsec PSK → fill in details above</p>
+            <p style="font-size:11px;color:var(--muted)">Settings → Network & Internet → VPN → + → L2TP/IPsec PSK</p>
           </div>
         </div>
       </div>
@@ -324,11 +308,11 @@ select option{background:var(--card)}
       <div id="device-ios" class="device-panel">
         <div class="proto-section">
           <div class="proto-header" onclick="toggleProto('ios-wg')">
-            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest, recommended</div><div class="proto-header-sub">Install: WireGuard app from App Store</div></div>
+            <div><div class="proto-header-title"><i class="ti ti-bolt" style="color:var(--amber-text);margin-right:6px"></i>WireGuard — fastest, recommended</div><div class="proto-header-sub">Install: WireGuard from App Store</div></div>
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="ios-wg" class="proto-body">
-            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf and import in WireGuard app → + → Create from file or archive</p>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Import in WireGuard app → + → Create from file or archive</p>
             <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
           </div>
         </div>
@@ -338,12 +322,8 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="ios-ovpn" class="proto-body" style="display:none">
-            <div class="form-group">
-              <label class="form-label">Mode</label>
-              <select id="ios-ovpn-proto">
-                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
-                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
-              </select>
+            <div class="form-group"><label class="form-label">Mode</label>
+              <select id="ios-ovpn-proto"><option value="udp">UDP</option><option value="tcp">TCP</option></select>
             </div>
             <button class="btn primary" onclick="genAndDownloadOvpn('ios-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
           </div>
@@ -378,7 +358,7 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="win-wg" class="proto-body">
-            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Open WireGuard → Add Tunnel → Import tunnel(s) from file → select the .conf</p>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">WireGuard → Add Tunnel → Import tunnel(s) from file</p>
             <button class="btn primary" onclick="dlWgConf()"><i class="ti ti-download"></i> Download WireGuard .conf</button>
           </div>
         </div>
@@ -388,25 +368,21 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="win-ovpn" class="proto-body" style="display:none">
-            <div class="form-group">
-              <label class="form-label">Mode</label>
-              <select id="win-ovpn-proto">
-                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
-                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
-              </select>
+            <div class="form-group"><label class="form-label">Mode</label>
+              <select id="win-ovpn-proto"><option value="udp">UDP</option><option value="tcp">TCP</option></select>
             </div>
             <button class="btn primary" onclick="genAndDownloadOvpn('win-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
           </div>
         </div>
         <div class="proto-section">
           <div class="proto-header" onclick="toggleProto('win-ikev2')">
-            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--accent-text);margin-right:6px"></i>IKEv2 — built-in Windows VPN</div><div class="proto-header-sub">No app needed — uses Windows built-in VPN client</div></div>
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--accent-text);margin-right:6px"></i>IKEv2 — built-in Windows VPN</div><div class="proto-header-sub">No app needed</div></div>
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="win-ikev2" class="proto-body" style="display:none">
             <div class="info-grid" id="win-ikev2-info"></div>
             <button class="btn primary" onclick="genWinPsScript('ikev2')"><i class="ti ti-download"></i> Download PowerShell setup script</button>
-            <p style="font-size:10px;color:var(--hint);margin-top:8px">Run the .ps1 script as Administrator to auto-configure the VPN connection</p>
+            <p style="font-size:10px;color:var(--hint);margin-top:8px">Run as Administrator to auto-configure the VPN connection</p>
           </div>
         </div>
         <div class="proto-section">
@@ -417,12 +393,12 @@ select option{background:var(--card)}
           <div id="win-l2tp" class="proto-body" style="display:none">
             <div class="info-grid" id="win-l2tp-info"></div>
             <button class="btn primary" onclick="genWinPsScript('l2tp')"><i class="ti ti-download"></i> Download PowerShell setup script</button>
-            <p style="font-size:10px;color:var(--hint);margin-top:8px">Run the .ps1 script as Administrator to auto-configure the VPN connection</p>
+            <p style="font-size:10px;color:var(--hint);margin-top:8px">Run as Administrator to auto-configure the VPN connection</p>
           </div>
         </div>
         <div class="proto-section">
           <div class="proto-header" onclick="toggleProto('win-sstp')">
-            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>SSTP — built-in, best for corporate firewalls</div><div class="proto-header-sub">Uses port 443 — works through almost any firewall</div></div>
+            <div><div class="proto-header-title"><i class="ti ti-lock" style="color:var(--green-text);margin-right:6px"></i>SSTP — best for corporate firewalls</div><div class="proto-header-sub">Looks like HTTPS — works through almost any firewall</div></div>
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="win-sstp" class="proto-body" style="display:none">
@@ -449,12 +425,8 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="mac-ovpn" class="proto-body" style="display:none">
-            <div class="form-group">
-              <label class="form-label">Mode</label>
-              <select id="mac-ovpn-proto">
-                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
-                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
-              </select>
+            <div class="form-group"><label class="form-label">Mode</label>
+              <select id="mac-ovpn-proto"><option value="udp">UDP</option><option value="tcp">TCP</option></select>
             </div>
             <button class="btn primary" onclick="genAndDownloadOvpn('mac-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
           </div>
@@ -479,15 +451,11 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="unifi-ovpn" class="proto-body">
-            <div class="form-group">
-              <label class="form-label">Mode</label>
-              <select id="unifi-ovpn-proto">
-                <option value="udp">UDP :${CFG.ports.ovpnUdp} — faster</option>
-                <option value="tcp">TCP :${CFG.ports.ovpnTcp} — censorship bypass</option>
-              </select>
+            <div class="form-group"><label class="form-label">Mode</label>
+              <select id="unifi-ovpn-proto"><option value="udp">UDP</option><option value="tcp">TCP</option></select>
             </div>
             <button class="btn primary" onclick="genAndDownloadOvpn('unifi-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn for UniFi</button>
-            <p style="font-size:11px;color:var(--muted);margin-top:10px">In UniFi: Network → VPN → VPN Client → Add → OpenVPN → upload the .ovpn file</p>
+            <p style="font-size:11px;color:var(--muted);margin-top:10px">Network → VPN → VPN Client → Add → OpenVPN → upload the .ovpn file</p>
           </div>
         </div>
         <div class="proto-section">
@@ -496,7 +464,7 @@ select option{background:var(--card)}
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="unifi-wg" class="proto-body" style="display:none">
-            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Download the .conf and upload to UniFi: Network → VPN → VPN Client → WireGuard → upload config</p>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Network → VPN → VPN Client → WireGuard → upload config</p>
             <button class="btn primary" onclick="dlWgConf(true)"><i class="ti ti-download"></i> Download WireGuard .conf for UniFi</button>
           </div>
         </div>
@@ -530,21 +498,15 @@ sudo systemctl enable wg-quick@wg0</div>
             <i class="ti ti-chevron-down"></i>
           </div>
           <div id="linux-ovpn" class="proto-body" style="display:none">
-            <div class="form-group">
-              <label class="form-label">Mode</label>
-              <select id="linux-ovpn-proto">
-                <option value="udp">UDP :${CFG.ports.ovpnUdp}</option>
-                <option value="tcp">TCP :${CFG.ports.ovpnTcp}</option>
-              </select>
+            <div class="form-group"><label class="form-label">Mode</label>
+              <select id="linux-ovpn-proto"><option value="udp">UDP</option><option value="tcp">TCP</option></select>
             </div>
             <button class="btn primary" onclick="genAndDownloadOvpn('linux-ovpn-proto')"><i class="ti ti-download"></i> Download .ovpn</button>
-            <div class="config-box" style="margin-top:10px"># Connect:
-sudo openvpn --config client.ovpn</div>
+            <div class="config-box" style="margin-top:10px">sudo openvpn --config client.ovpn</div>
           </div>
         </div>
       </div>
-
-    </div><!-- end export page -->
+    </div>
 
     <!-- WIREGUARD MANAGEMENT -->
     <div id="page-wireguard" class="page">
@@ -568,10 +530,14 @@ sudo openvpn --config client.ovpn</div>
         </table>
       </div>
       <div class="card" style="background:var(--amber-bg);border-color:#ba751730">
-        <div style="font-size:11px;color:var(--amber-text)">
+        <div style="font-size:11px;color:var(--amber-text);line-height:1.8">
           <i class="ti ti-info-circle" style="margin-right:6px"></i>
-          Adding or removing peers will automatically restart the WireGuard container (~10 seconds downtime).
-          Existing peer configs and keys are preserved when adding new peers.
+          <strong>Adding or deleting peers restarts WireGuard.</strong> The UI updates automatically — please wait:
+          <ul style="margin:6px 0 0 20px">
+            <li><strong>Adding peers:</strong> ~30–60 seconds for new peer configs to appear</li>
+            <li><strong>Deleting peers:</strong> ~35 seconds for the peer list to refresh</li>
+          </ul>
+          Do not click again while WireGuard is restarting. Existing peer keys are preserved when adding new peers.
         </div>
       </div>
     </div>
@@ -580,7 +546,6 @@ sudo openvpn --config client.ovpn</div>
 </div>
 
 <!-- MODALS -->
-
 <div id="modal-addpeers" class="modal-backdrop">
   <div class="modal">
     <div class="modal-title">Add WireGuard Peers</div>
@@ -588,9 +553,9 @@ sudo openvpn --config client.ovpn</div>
       <label class="form-label">Number of peers to add</label>
       <input type="number" id="add-peer-count" value="1" min="1" max="20" style="width:100%">
     </div>
-    <p style="font-size:11px;color:var(--muted)">
-      New peers will be generated automatically. The WireGuard container will restart briefly (~10 seconds).
-      After restarting, new peer configs will appear in the table and Config Export page.
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">
+      New peers will be generated automatically. WireGuard will restart (~30–60 seconds).
+      The table will update automatically after restarting — <strong>please wait, do not click again.</strong>
     </p>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-addpeers')">Cancel</button>
@@ -646,42 +611,43 @@ sudo openvpn --config client.ovpn</div>
 // ═══════════════════════════════════════════════════════════════════════════
 const CFG = {
   // Your server's public IP or domain name
-  serverIP: 'vpn.cosmoscraft.net',
+  serverIP: 'cloud.cosmoscraft.net',
 
-  // SoftEther ports (must match docker-compose.yml)
+  // SoftEther ports — must match .env
   ports: {
-    ovpnUdp:  9194,   // OpenVPN UDP
-    ovpnTcp:  9443,   // OpenVPN TCP + SSL-VPN + SSTP
-    sslVpn:   9992,   // SoftEther SSL-VPN alternate
-    l2tp:     9701,   // L2TP/IPsec
-    ikev2:    9000,   // IKEv2 (ISAKMP)
-    ikev2Nat: 9500,   // IKEv2 NAT-T
-    jsonRpc:  9555,   // JSON-RPC admin API
-    webUi:    9765,   // Web UI port
+    ovpnUdp:  9194,   // PORT_OVPN_UDP
+    ovpnTcp:  8443,   // PORT_OVPN_TCP
+    sslVpn:   9992,   // PORT_SSL_ALT
+    l2tp:     9701,   // PORT_L2TP
+    ikev2:    9000,   // PORT_IKEV2
+    ikev2Nat: 9500,   // PORT_IKEV2_NAT
+    jsonRpc:  9555,   // PORT_JSONRPC
+    webUi:    9765,   // PORT_WEBUI
   },
 
-  // WireGuard port (must match docker-compose.yml)
+  // WireGuard port — must match .env PORT_WIREGUARD
   wgPort: 51820,
 
-  // SoftEther hub name (auto-detected on login, but set here as fallback)
+  // SoftEther hub name (auto-detected on login)
   hubName: 'DEFAULT',
 
-  // WireGuard API key — must match WG_API_KEY in .env
-  wgApiKey: 'ChangeMe_WIREGUARD_API_KEY_FROM_.env_FILE!',
+  // WireGuard API key — must match .env WG_API_KEY
+  // Set this using Python to avoid shell escaping issues with special chars:
+  //   python3 -c "
+  //     with open('ui/index.html','r') as f: c=f.read()
+  //     c=c.replace(\"wgApiKey: 'ChangeMe_WgApiKey'\",\"wgApiKey: 'YOUR_KEY'\")
+  //     with open('ui/index.html','w') as f: f.write(c)
+  //   "
+  wgApiKey: 'ChangeMe_WgApiKey',
 };
 // ═══════════════════════════════════════════════════════════════════════════
 
 const S = { host: CFG.serverIP, pass: '', hub: CFG.hubName, users: [], sessions: [], cert: '' };
 
-// ── API ─────────────────────────────────────────────────────────────────────
 async function api(method, params = {}) {
   const r = await fetch('/api/', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-VPNADMIN-PASSWORD': S.pass,
-      'X-VPNADMIN-HUBNAME': ''
-    },
+    headers: { 'Content-Type': 'application/json', 'X-VPNADMIN-PASSWORD': S.pass, 'X-VPNADMIN-HUBNAME': '' },
     body: JSON.stringify({ jsonrpc: '2.0', id: '1', method, params })
   });
   if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -690,11 +656,9 @@ async function api(method, params = {}) {
   return d.result;
 }
 
-// ── Login ───────────────────────────────────────────────────────────────────
 async function doLogin() {
   const btn = document.getElementById('login-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2"></i> Connecting...';
+  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Connecting...';
   document.getElementById('login-err').classList.remove('show');
   S.host = document.getElementById('f-host').value.trim();
   S.pass = document.getElementById('f-pass').value;
@@ -703,42 +667,51 @@ async function doLogin() {
     await api('Test', { IntValue_u32: 0 });
     const hubs = await api('EnumHub', {});
     if (hubs.HubList && hubs.HubList.length > 0) S.hub = hubs.HubList[0].HubName_str;
-    // Pre-fetch cert
     try {
       const certRes = await api('GetServerCert', {});
-      const b64 = certRes.Cert_bin;
-      const lines = b64.match(/.{1,64}/g) || [];
+      const lines = certRes.Cert_bin.match(/.{1,64}/g) || [];
       S.cert = '-----BEGIN CERTIFICATE-----\n' + lines.join('\n') + '\n-----END CERTIFICATE-----';
     } catch(e) {}
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('h-host').textContent = S.host + '  ·  Hub: ' + S.hub;
-    loadDashboard();
-    loadUserList();
-    updateInfoPanels();
-  } catch(e) {
-    showErr('Connection failed: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-login"></i> Connect';
-  }
+    initProtoBadges();
+    loadDashboard(); loadUserList(); updateInfoPanels();
+    // Pre-load WireGuard peers so export dropdown is populated
+    wgApi('/peers').then(data => {
+      const sel = document.getElementById('exp-wg-peer');
+      if (sel && data.peers && data.peers.length) {
+        sel.innerHTML = data.peers.map(p =>
+          `<option value="${p.id}">${p.name !== p.id ? p.name + ' (' + p.id + ')' : p.id}</option>`
+        ).join('');
+      }
+    }).catch(() => {});
+  } catch(e) { showErr('Connection failed: ' + e.message); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="ti ti-login"></i> Connect'; }
 }
 
-function showErr(msg) {
-  const e = document.getElementById('login-err');
-  e.textContent = msg; e.classList.add('show');
-}
-
-document.getElementById('f-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+function showErr(msg) { const e=document.getElementById('login-err'); e.textContent=msg; e.classList.add('show'); }
+document.getElementById('f-pass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
 function doLogout() {
-  S.pass = ''; S.users = []; S.sessions = []; S.cert = '';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('f-pass').value = '';
+  S.pass=''; S.users=[]; S.sessions=[]; S.cert='';
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('f-pass').value='';
 }
 
-// ── Navigation ───────────────────────────────────────────────────────────────
+function initProtoBadges() {
+  document.getElementById('proto-badges').innerHTML = [
+    `WireGuard :${CFG.wgPort}`,
+    `SSL-VPN :${CFG.ports.ovpnTcp}/:${CFG.ports.sslVpn}`,
+    `OpenVPN UDP :${CFG.ports.ovpnUdp}`,
+    `OpenVPN TCP :${CFG.ports.ovpnTcp}`,
+    `L2TP/IPsec :${CFG.ports.l2tp}`,
+    `IKEv2 :${CFG.ports.ikev2}/:${CFG.ports.ikev2Nat}`,
+    `SSTP :${CFG.ports.ovpnTcp}`
+  ].map(t=>`<span class="badge green"><i class="ti ti-check" style="font-size:11px"></i>${t}</span>`).join('');
+}
+
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -763,88 +736,65 @@ function toggleProto(id) {
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-// ── Dashboard ────────────────────────────────────────────────────────────────
 async function loadDashboard() {
+  try { const i=await api('GetServerInfo',{}); document.getElementById('s-version').textContent=i.ServerVersionString_str??'—'; } catch(e){}
   try {
-    const info = await api('GetServerInfo', {});
-    document.getElementById('s-version').textContent = info.ServerVersionString_str ?? '—';
-  } catch(e) {}
+    const s=await api('GetServerStatus',{});
+    document.getElementById('s-users').textContent=s.NumUsers_u32??'—';
+    if(s.StartTime_dt){const ms=Date.now()-new Date(s.StartTime_dt).getTime();const d=Math.floor(ms/86400000);const h=Math.floor((ms%86400000)/3600000);document.getElementById('s-uptime').textContent=d>0?d+'d':h+'h';}
+  } catch(e){}
   try {
-    const status = await api('GetServerStatus', {});
-    document.getElementById('s-users').textContent = status.NumUsers_u32 ?? '—';
-    if (status.StartTime_dt) {
-      const ms = Date.now() - new Date(status.StartTime_dt).getTime();
-      const days = Math.floor(ms / 86400000);
-      const hours = Math.floor((ms % 86400000) / 3600000);
-      document.getElementById('s-uptime').textContent = days > 0 ? days + 'd' : hours + 'h';
-    }
-  } catch(e) {}
-  try {
-    const res = await api('EnumSession', { HubName_str: S.hub });
-    S.sessions = (res.SessionList ?? []).filter(s => !s.SecureNATMode_bool);
-    document.getElementById('s-sessions').textContent = S.sessions.length;
-    const tbody = document.getElementById('dash-sessions');
-    if (!S.sessions.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 0">No active client sessions</td></tr>';
-    } else {
-      tbody.innerHTML = S.sessions.map(s => `<tr>
-        <td style="font-weight:500">${s.Username_str ?? '—'}</td>
-        <td><span class="badge purple">${s.BridgeMode_bool?'Bridge':s.LinkMode_bool?'Cascade':'Client'}</span></td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${s.ClientIP_ip !== '0.0.0.0' ? s.ClientIP_ip : '—'}</td>
-        <td style="color:var(--muted)">${s.CreatedTime_dt ? timeSince(new Date(s.CreatedTime_dt)) : '—'}</td>
-        <td><button class="btn sm danger" onclick="kickSession('${s.Name_str}')"><i class="ti ti-plug-x"></i> Kick</button></td>
-      </tr>`).join('');
-    }
-  } catch(e) {}
+    const res=await api('EnumSession',{HubName_str:S.hub});
+    S.sessions=(res.SessionList??[]).filter(s=>!s.SecureNATMode_bool&&s.Username_str&&s.Username_str!=='');
+    document.getElementById('s-sessions').textContent=S.sessions.length;
+    const tbody=document.getElementById('dash-sessions');
+    if(!S.sessions.length){tbody.innerHTML='<tr><td colspan="5" style="color:var(--muted);padding:14px 0">No active client sessions</td></tr>';}
+    else{tbody.innerHTML=S.sessions.map(s=>`<tr>
+      <td style="font-weight:500">${s.Username_str??'—'}</td>
+      <td><span class="badge purple">${s.BridgeMode_bool?'Bridge':s.LinkMode_bool?'Cascade':'Client'}</span></td>
+      <td style="font-size:11px">${s.ClientIP_ip!=='0.0.0.0'?s.ClientIP_ip:'—'}</td>
+      <td style="color:var(--muted)">${s.CreatedTime_dt?timeSince(new Date(s.CreatedTime_dt)):'—'}</td>
+      <td><button class="btn sm danger" onclick="kickSession('${s.Name_str}')"><i class="ti ti-plug-x"></i> Kick</button></td>
+    </tr>`).join('');}
+  } catch(e){}
 }
 
-// ── Sessions ─────────────────────────────────────────────────────────────────
 async function loadSessions() {
-  const tbody = document.getElementById('sessions-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
+  const tbody=document.getElementById('sessions-tbody');
+  tbody.innerHTML='<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
   try {
-    const res = await api('EnumSession', { HubName_str: S.hub });
-    S.sessions = (res.SessionList ?? []).filter(s => !s.SecureNATMode_bool);
-    if (!S.sessions.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">No active client sessions</td></tr>';
-      return;
-    }
-    tbody.innerHTML = S.sessions.map(s => `<tr>
+    const res=await api('EnumSession',{HubName_str:S.hub});
+    S.sessions=(res.SessionList??[]).filter(s=>!s.SecureNATMode_bool&&s.Username_str&&s.Username_str!=='');
+    if(!S.sessions.length){tbody.innerHTML='<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">No active client sessions</td></tr>';return;}
+    tbody.innerHTML=S.sessions.map(s=>`<tr>
       <td style="padding-left:20px;font-size:10px;color:var(--muted)">${s.Name_str}</td>
-      <td style="font-weight:500">${s.Username_str ?? '—'}</td>
+      <td style="font-weight:500">${s.Username_str??'—'}</td>
       <td><span class="badge purple">${s.BridgeMode_bool?'Bridge':s.LinkMode_bool?'Cascade':'Client'}</span></td>
-      <td style="font-size:11px">${s.ClientIP_ip !== '0.0.0.0' ? s.ClientIP_ip : '—'}</td>
-      <td style="font-size:11px;color:var(--muted)">${s.PacketNum_u64 ?? 0} pkts</td>
+      <td style="font-size:11px">${s.ClientIP_ip!=='0.0.0.0'?s.ClientIP_ip:'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${s.PacketNum_u64??0} pkts</td>
       <td style="padding-right:20px"><button class="btn sm danger" onclick="kickSession('${s.Name_str}')"><i class="ti ti-plug-x"></i> Kick</button></td>
     </tr>`).join('');
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--red-text);padding:14px 20px">Error: ' + e.message + '</td></tr>';
-  }
+  } catch(e){tbody.innerHTML=`<tr><td colspan="6" style="color:var(--red-text);padding:14px 20px">Error: ${e.message}</td></tr>`;}
 }
 
 async function kickSession(name) {
-  if (!confirm('Disconnect session: ' + name + '?')) return;
-  try {
-    await api('DeleteSession', { HubName_str: S.hub, Name_str: name });
-    toast('Session disconnected', 'success');
-    loadSessions(); loadDashboard();
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  if(!confirm('Disconnect session: '+name+'?')) return;
+  try { await api('DeleteSession',{HubName_str:S.hub,Name_str:name}); toast('Session disconnected','success'); loadSessions(); loadDashboard(); }
+  catch(e){toast('Error: '+e.message,'error');}
 }
 
-// ── Users ────────────────────────────────────────────────────────────────────
 async function loadUserList() {
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
+  const tbody=document.getElementById('users-tbody');
+  tbody.innerHTML='<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
   try {
-    const res = await api('EnumUser', { HubName_str: S.hub });
-    S.users = res.UserList ?? [];
-    document.getElementById('s-users').textContent = S.users.length;
-    if (!S.users.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">No users</td></tr>'; return; }
-    tbody.innerHTML = S.users.map(u => {
-      const auth = {0:'Anon',1:'Password',2:'Cert',3:'RootCert',4:'Radius',5:'NT'}[u.AuthType_u32] ?? '?';
-      const enabled = !u.DenyAccess_bool;
-      const lastLogin = u.LastLoginTime_dt && !u.LastLoginTime_dt.startsWith('1970')
-        ? new Date(u.LastLoginTime_dt).toLocaleDateString() : 'Never';
+    const res=await api('EnumUser',{HubName_str:S.hub});
+    S.users=res.UserList??[];
+    document.getElementById('s-users').textContent=S.users.length;
+    if(!S.users.length){tbody.innerHTML='<tr><td colspan="6" style="color:var(--muted);padding:14px 20px">No users</td></tr>';return;}
+    tbody.innerHTML=S.users.map(u=>{
+      const auth={0:'Anon',1:'Password',2:'Cert',3:'RootCert',4:'Radius',5:'NT'}[u.AuthType_u32]??'?';
+      const enabled=!u.DenyAccess_bool;
+      const lastLogin=u.LastLoginTime_dt&&!u.LastLoginTime_dt.startsWith('1970')?new Date(u.LastLoginTime_dt).toLocaleDateString():'Never';
       return `<tr>
         <td style="padding-left:20px"><div style="font-weight:500">${u.Name_str}</div><div style="font-size:10px;color:var(--muted)">${u.Realname_utf||'—'}</div></td>
         <td><span class="badge amber">${auth}</span></td>
@@ -855,103 +805,86 @@ async function loadUserList() {
       </tr>`;
     }).join('');
     populateExportUsers();
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--red-text);padding:14px 20px">Error: ' + e.message + '</td></tr>';
-  }
+  } catch(e){tbody.innerHTML=`<tr><td colspan="6" style="color:var(--red-text);padding:14px 20px">Error: ${e.message}</td></tr>`;}
 }
 
 async function createUser() {
-  const name = document.getElementById('nu-name').value.trim();
-  const pass = document.getElementById('nu-pass').value;
-  const display = document.getElementById('nu-display').value.trim();
-  if (!name) { toast('Username required', 'error'); return; }
-  if (!pass) { toast('Password required', 'error'); return; }
+  const name=document.getElementById('nu-name').value.trim();
+  const pass=document.getElementById('nu-pass').value;
+  const display=document.getElementById('nu-display').value.trim();
+  if(!name){toast('Username required','error');return;}
+  if(!pass){toast('Password required','error');return;}
   try {
-    await api('CreateUser', {
-      HubName_str: S.hub, Name_str: name, Realname_utf: display || name,
-      Note_utf: '', ExpireTime_dt: '1970-01-01T00:00:00.000Z',
-      AuthType_u32: 1, Auth_Password_str: pass
-    });
-    toast('User ' + name + ' created', 'success');
+    await api('CreateUser',{HubName_str:S.hub,Name_str:name,Realname_utf:display||name,Note_utf:'',ExpireTime_dt:'1970-01-01T00:00:00.000Z',AuthType_u32:1,Auth_Password_str:pass});
+    toast('User '+name+' created','success');
     closeModal('modal-adduser');
-    document.getElementById('nu-name').value = '';
-    document.getElementById('nu-pass').value = '';
-    document.getElementById('nu-display').value = '';
+    document.getElementById('nu-name').value=''; document.getElementById('nu-pass').value=''; document.getElementById('nu-display').value='';
     loadUserList();
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  } catch(e){toast('Error: '+e.message,'error');}
 }
 
 async function deleteUser(name) {
-  if (!confirm('Delete user "' + name + '"?')) return;
-  try {
-    await api('DeleteUser', { HubName_str: S.hub, Name_str: name });
-    toast('User deleted', 'success'); loadUserList();
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  if(!confirm('Delete user "'+name+'"?')) return;
+  try { await api('DeleteUser',{HubName_str:S.hub,Name_str:name}); toast('User deleted','success'); loadUserList(); }
+  catch(e){toast('Error: '+e.message,'error');}
 }
 
-// ── Config Export ────────────────────────────────────────────────────────────
 function populateExportUsers() {
-  const sel = document.getElementById('exp-user');
-  if (!sel) return;
-  sel.innerHTML = S.users.length
-    ? S.users.map(u => `<option value="${u.Name_str}">${u.Name_str}</option>`).join('')
-    : '<option value="vpnuser">vpnuser</option>';
+  const sel=document.getElementById('exp-user');
+  if(!sel) return;
+  sel.innerHTML=S.users.length?S.users.map(u=>`<option value="${u.Name_str}">${u.Name_str}</option>`).join(''):'<option value="vpnuser">vpnuser</option>';
 }
 
-function getExportUser() { return document.getElementById('exp-user').value || 'vpnuser'; }
-function getWgPeer() { return document.getElementById('exp-wg-peer').value || 'peer1'; }
+function getExportUser(){return document.getElementById('exp-user').value||'vpnuser';}
+function getWgPeer(){return document.getElementById('exp-wg-peer').value||'peer1';}
 
 function updateInfoPanels() {
-  const h = S.host || 'YOUR_SERVER_IP';
-  const user = getExportUser();
-  const ikev2Info = `<div class="info-key">Server</div><div class="info-val">${h}</div>
+  const h=S.host||'YOUR_SERVER_IP'; const user=getExportUser();
+  const ikev2Info=`<div class="info-key">Server</div><div class="info-val">${h}</div>
     <div class="info-key">Port</div><div class="info-val">${CFG.ports.ikev2} (UDP)</div>
     <div class="info-key">VPN Type</div><div class="info-val">IKEv2/IPsec</div>
     <div class="info-key">Auth</div><div class="info-val">EAP Username/Password</div>
     <div class="info-key">Username</div><div class="info-val">${user}</div>
-    <div class="info-key">Password</div><div class="info-val">(set in USERS= docker-compose.yml)</div>`;
-  const l2tpInfo = `<div class="info-key">Server</div><div class="info-val">${h}</div>
+    <div class="info-key">Password</div><div class="info-val">(set in USERS= in .env)</div>`;
+  const l2tpInfo=`<div class="info-key">Server</div><div class="info-val">${h}</div>
     <div class="info-key">Port</div><div class="info-val">${CFG.ports.l2tp} (UDP)</div>
     <div class="info-key">VPN Type</div><div class="info-val">L2TP/IPsec PSK</div>
-    <div class="info-key">Pre-shared Key</div><div class="info-val">(PSK= in docker-compose.yml)</div>
+    <div class="info-key">Pre-shared Key</div><div class="info-val">(PSK= in .env)</div>
     <div class="info-key">Username</div><div class="info-val">${user}</div>
-    <div class="info-key">Password</div><div class="info-val">(set in USERS= docker-compose.yml)</div>`;
-  const sstpInfo = `<div class="info-key">Server</div><div class="info-val">https://${h}:${CFG.ports.ovpnTcp}</div>
+    <div class="info-key">Password</div><div class="info-val">(set in USERS= in .env)</div>`;
+  const sstpInfo=`<div class="info-key">Server</div><div class="info-val">https://${h}:${CFG.ports.ovpnTcp}</div>
     <div class="info-key">VPN Type</div><div class="info-val">SSTP</div>
     <div class="info-key">Username</div><div class="info-val">${user}</div>
-    <div class="info-key">Password</div><div class="info-val">(set in USERS= docker-compose.yml)</div>`;
-  ['android','ios','win','mac'].forEach(d => {
-    const ik = document.getElementById(d+'-ikev2-info');
-    const lt = document.getElementById(d+'-l2tp-info');
-    const ss = document.getElementById(d+'-sstp-info');
-    if (ik) ik.innerHTML = ikev2Info;
-    if (lt) lt.innerHTML = l2tpInfo;
-    if (ss) ss.innerHTML = sstpInfo;
+    <div class="info-key">Password</div><div class="info-val">(set in USERS= in .env)</div>`;
+  ['android','ios','win','mac'].forEach(d=>{
+    const ik=document.getElementById(d+'-ikev2-info');
+    const lt=document.getElementById(d+'-l2tp-info');
+    const ss=document.getElementById(d+'-sstp-info');
+    if(ik) ik.innerHTML=ikev2Info;
+    if(lt) lt.innerHTML=l2tpInfo;
+    if(ss) ss.innerHTML=sstpInfo;
   });
 }
 
 document.getElementById('exp-user').addEventListener('change', updateInfoPanels);
 
-// ── OpenVPN config generator ─────────────────────────────────────────────────
 async function genOvpnConfig(proto) {
-  if (!S.cert) {
+  if(!S.cert){
     try {
-      const certRes = await api('GetServerCert', {});
-      const b64 = certRes.Cert_bin;
-      const lines = b64.match(/.{1,64}/g) || [];
-      S.cert = '-----BEGIN CERTIFICATE-----\n' + lines.join('\n') + '\n-----END CERTIFICATE-----';
-    } catch(e) { throw new Error('Could not fetch server certificate: ' + e.message); }
+      const certRes=await api('GetServerCert',{});
+      const lines=certRes.Cert_bin.match(/.{1,64}/g)||[];
+      S.cert='-----BEGIN CERTIFICATE-----\n'+lines.join('\n')+'\n-----END CERTIFICATE-----';
+    } catch(e){throw new Error('Could not fetch server certificate: '+e.message);}
   }
-  const user = getExportUser();
-  const isUdp = proto === 'udp';
+  const user=getExportUser(); const isUdp=proto==='udp';
   return `# SoftEther VPN — OpenVPN config
 # User: ${user}  Hub: ${S.hub}
 # Generated: ${new Date().toISOString()}
 
 client
 dev tun
-proto ${isUdp ? 'udp' : 'tcp'}
-remote ${S.host} ${isUdp ? CFG.ports.ovpnUdp : CFG.ports.ovpnTcp}
+proto ${isUdp?'udp':'tcp'}
+remote ${S.host} ${isUdp?CFG.ports.ovpnUdp:CFG.ports.ovpnTcp}
 resolv-retry infinite
 nobind
 persist-key
@@ -961,6 +894,8 @@ data-ciphers AES-128-CBC:AES-256-CBC
 cipher AES-128-CBC
 auth SHA1
 auth-user-pass
+keepalive 10 60
+explicit-exit-notify 0
 verb 3
 <ca>
 ${S.cert}
@@ -968,54 +903,37 @@ ${S.cert}
 }
 
 async function genAndDownloadOvpn(selectId) {
-  const proto = document.getElementById(selectId).value;
-  const btn = event.target.closest('button');
-  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Generating...';
-  try {
-    const config = await genOvpnConfig(proto);
-    dlFile(config, 'client.ovpn', 'text/plain');
-    toast('OpenVPN config downloaded', 'success');
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = '<i class="ti ti-download"></i> Download .ovpn'; }
-}
-
-// ── WireGuard config download ─────────────────────────────────────────────────
-async function getWgConfText(peer) {
-  const r = await fetch('/wg/' + peer + '.conf');
-  if (!r.ok) throw new Error('Peer config not found — check PEERS= in docker-compose.yml and that the container has started');
-  return await r.text();
+  const proto=document.getElementById(selectId).value;
+  const btn=event.target.closest('button');
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Generating...';
+  try { const config=await genOvpnConfig(proto); dlFile(config,'client.ovpn','text/plain'); toast('OpenVPN config downloaded','success'); }
+  catch(e){toast('Error: '+e.message,'error');}
+  finally{btn.disabled=false; btn.innerHTML='<i class="ti ti-download"></i> Download .ovpn';}
 }
 
 function fixWgConfForUnifi(text) {
-  // UniFi requires Address = x.x.x.x/32 format and no ListenPort
-  // Handle both "10.13.13.2/24" and "10.13.13.2" (no mask)
   return text
-    .replace(/^(Address\s*=\s*\d+\.\d+\.\d+\.\d+)(\/\d+)?/m, '$1/32')
-    .replace(/^ListenPort\s*=.*$/m, '');
+    .replace(/^(Address\s*=\s*\d+\.\d+\.\d+\.\d+)(\/\d+)?/m,'$1/32')
+    .replace(/^ListenPort\s*=.*$/m,'');
 }
 
 async function dlWgConf(forUnifi) {
-  const peer = getWgPeer();
-  const btn = event.target.closest('button');
-  const origLabel = btn.innerHTML;
-  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Fetching...';
-  try {
-    await dlWgConfById(peer, forUnifi);
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = origLabel; }
+  const peer=getWgPeer();
+  const btn=event.target.closest('button');
+  const orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Fetching...';
+  try { await dlWgConfById(peer,forUnifi); }
+  catch(e){toast('Error: '+e.message,'error');}
+  finally{btn.disabled=false; btn.innerHTML=orig;}
 }
 
-// ── iOS/macOS .mobileconfig ───────────────────────────────────────────────────
 function genIosMobileconfig(type) {
-  const h = S.host;
-  const user = getExportUser();
-  const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&0x3|0x8).toString(16)});
-  let payloadContent = '';
-  if (type === 'ikev2') {
-    payloadContent = `<dict>
+  const h=S.host; const user=getExportUser();
+  const uuid=()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&0x3|0x8).toString(16)});
+  let payload='';
+  if(type==='ikev2'){payload=`<dict>
       <key>AuthenticationMethod</key><string>None</string>
-      <key>ChildSecurityAssociationParameters</key>
-      <dict>
+      <key>ChildSecurityAssociationParameters</key><dict>
         <key>EncryptionAlgorithm</key><string>AES-256</string>
         <key>IntegrityAlgorithm</key><string>SHA2-256</string>
         <key>DiffieHellmanGroup</key><integer>14</integer>
@@ -1026,15 +944,12 @@ function genIosMobileconfig(type) {
       <key>EnableCertificateRevocationCheck</key><integer>0</integer>
       <key>EnablePFS</key><integer>0</integer>
       <key>ExtendedAuthEnabled</key><integer>1</integer>
-      <key>IKESecurityAssociationParameters</key>
-      <dict>
+      <key>IKESecurityAssociationParameters</key><dict>
         <key>EncryptionAlgorithm</key><string>AES-256</string>
         <key>IntegrityAlgorithm</key><string>SHA2-256</string>
         <key>DiffieHellmanGroup</key><integer>14</integer>
       </dict>
       <key>LocalIdentifier</key><string>${user}</string>
-      <key>PayloadDescription</key><string>IKEv2 VPN</string>
-      <key>PayloadDisplayName</key><string>IKEv2 VPN</string>
       <key>PayloadIdentifier</key><string>com.vpn.ikev2.${uuid()}</string>
       <key>PayloadType</key><string>com.apple.vpn.managed</string>
       <key>PayloadUUID</key><string>${uuid()}</string>
@@ -1044,303 +959,172 @@ function genIosMobileconfig(type) {
       <key>AuthName</key><string>${user}</string>
       <key>UserDefinedName</key><string>VPN (IKEv2)</string>
       <key>VPNType</key><string>IKEv2</string>
-    </dict>`;
-  } else {
-    payloadContent = `<dict>
+    </dict>`;}
+  else{payload=`<dict>
       <key>AuthenticationMethod</key><string>SharedSecret</string>
-      <key>L2TP</key>
-      <dict>
-        <key>AuthName</key><string>${user}</string>
-      </dict>
-      <key>PayloadDescription</key><string>L2TP VPN</string>
-      <key>PayloadDisplayName</key><string>L2TP VPN</string>
       <key>PayloadIdentifier</key><string>com.vpn.l2tp.${uuid()}</string>
       <key>PayloadType</key><string>com.apple.vpn.managed</string>
       <key>PayloadUUID</key><string>${uuid()}</string>
       <key>PayloadVersion</key><integer>1</integer>
-      <key>PPP</key>
-      <dict>
-        <key>AuthName</key><string>${user}</string>
-        <key>CommRemoteAddress</key><string>${h}</string>
-      </dict>
-      <key>IPSec</key>
-      <dict>
-        <key>AuthenticationMethod</key><string>SharedSecret</string>
-        <key>RemoteAddress</key><string>${h}</string>
-      </dict>
+      <key>PPP</key><dict><key>AuthName</key><string>${user}</string><key>CommRemoteAddress</key><string>${h}</string></dict>
+      <key>IPSec</key><dict><key>AuthenticationMethod</key><string>SharedSecret</string><key>RemoteAddress</key><string>${h}</string></dict>
       <key>UserDefinedName</key><string>VPN (L2TP)</string>
       <key>VPNType</key><string>L2TP</string>
-    </dict>`;
-  }
-
-  const config = `<?xml version="1.0" encoding="UTF-8"?>
+    </dict>`;}
+  const config=`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array>
-    ${payloadContent}
-  </array>
+<plist version="1.0"><dict>
+  <key>PayloadContent</key><array>${payload}</array>
   <key>PayloadDisplayName</key><string>VPN Configuration</string>
   <key>PayloadIdentifier</key><string>com.vpn.profile.${uuid()}</string>
   <key>PayloadType</key><string>Configuration</string>
   <key>PayloadUUID</key><string>${uuid()}</string>
   <key>PayloadVersion</key><integer>1</integer>
-</dict>
-</plist>`;
-
-  dlFile(config, 'vpn-' + type + '.mobileconfig', 'application/x-apple-aspen-config');
-  toast('.mobileconfig downloaded — AirDrop or email it to your device', 'success');
+</dict></plist>`;
+  dlFile(config,'vpn-'+type+'.mobileconfig','application/x-apple-aspen-config');
+  toast('.mobileconfig downloaded — AirDrop or email to device','success');
 }
 
-// ── StrongSwan .sswan for Android ────────────────────────────────────────────
 function genAndDownloadSswan() {
-  const h = S.host;
-  const user = getExportUser();
-  const config = JSON.stringify({
-    uuid: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-    name: 'VPN (IKEv2)',
-    type: 'ikev2-eap',
-    remote: { addr: h, port: String(CFG.ports.ikev2) },
-    local: { eap_id: user },
-    ike_proposal: 'aes256-sha256-modp2048',
-    esp_proposal: 'aes256-sha256',
-    split_tunneling: false
-  }, null, 2);
-  dlFile(config, 'vpn-ikev2.sswan', 'application/json');
-  toast('StrongSwan profile downloaded', 'success');
+  const config=JSON.stringify({uuid:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),name:'VPN (IKEv2)',type:'ikev2-eap',remote:{addr:S.host,port:String(CFG.ports.ikev2)},local:{eap_id:getExportUser()},ike_proposal:'aes256-sha256-modp2048',esp_proposal:'aes256-sha256',split_tunneling:false},null,2);
+  dlFile(config,'vpn-ikev2.sswan','application/json');
+  toast('StrongSwan profile downloaded','success');
 }
 
-// ── Windows PowerShell scripts ────────────────────────────────────────────────
 function genWinPsScript(type) {
-  const h = S.host;
-  const user = getExportUser();
-  let script = '';
-  if (type === 'ikev2') {
-    script = `# VPN Setup Script — IKEv2
-# Run as Administrator in PowerShell
-# User: ${user}
-
-Add-VpnConnection \`
-  -Name "VPN (IKEv2)" \`
-  -ServerAddress "${h}" \`
-  -TunnelType "IKEv2" \`
-  -AuthenticationMethod "EAP" \`
-  -EncryptionLevel "Required" \`
-  -RememberCredential \`
-  -PassThru
-
-# Set the username
-$vpn = Get-VpnConnection -Name "VPN (IKEv2)"
-Set-VpnConnectionUsernamePassword -ConnectionName "VPN (IKEv2)" -UserName "${user}"
-
-Write-Host "VPN configured. Connect via Settings -> Network -> VPN -> VPN (IKEv2)"
-Write-Host "Username: ${user}"
-Write-Host "Password: (the one set in docker-compose.yml USERS=)"`;
-  } else if (type === 'l2tp') {
-    script = `# VPN Setup Script — L2TP/IPsec
-# Run as Administrator in PowerShell
-# User: ${user}
-
-Add-VpnConnection \`
-  -Name "VPN (L2TP)" \`
-  -ServerAddress "${h}" \`
-  -TunnelType "L2tp" \`
-  -AuthenticationMethod "CHAP","MSChapv2" \`
-  -L2tpPsk "(your PSK from docker-compose.yml PSK=)" \`
-  -EncryptionLevel "Optional" \`
-  -RememberCredential \`
-  -PassThru
-
-Write-Host "VPN configured. Connect via Settings -> Network -> VPN -> VPN (L2TP)"
-Write-Host "Username: ${user}"
-Write-Host "Password: (the one set in docker-compose.yml USERS=)"`;
-  } else if (type === 'sstp') {
-    script = `# VPN Setup Script — SSTP
-# Run as Administrator in PowerShell
-# User: ${user}
-
-Add-VpnConnection \`
-  -Name "VPN (SSTP)" \`
-  -ServerAddress "${h}" \`
-  -TunnelType "Sstp" \`
-  -AuthenticationMethod "CHAP","MSChapv2" \`
-  -EncryptionLevel "Required" \`
-  -RememberCredential \`
-  -PassThru
-
-Write-Host "VPN configured. Connect via Settings -> Network -> VPN -> VPN (SSTP)"
-Write-Host "Username: ${user}"
-Write-Host "Password: (the one set in docker-compose.yml USERS=)"
-Write-Host "Note: SSTP uses port ${CFG.ports.ovpnTcp} which maps to SoftEther SSL-VPN"`;
-  }
-  dlFile(script, 'setup-vpn-' + type + '.ps1', 'text/plain');
-  toast('PowerShell script downloaded — run as Administrator', 'success');
+  const h=S.host; const user=getExportUser();
+  let s='';
+  if(type==='ikev2'){s=`# VPN Setup — IKEv2\n# Run as Administrator\nAdd-VpnConnection \`\n  -Name "VPN (IKEv2)" \`\n  -ServerAddress "${h}" \`\n  -TunnelType "IKEv2" \`\n  -AuthenticationMethod "EAP" \`\n  -EncryptionLevel "Required" \`\n  -RememberCredential\nWrite-Host "Done. Username: ${user}"`;}
+  else if(type==='l2tp'){s=`# VPN Setup — L2TP\n# Run as Administrator\nAdd-VpnConnection \`\n  -Name "VPN (L2TP)" \`\n  -ServerAddress "${h}" \`\n  -TunnelType "L2tp" \`\n  -AuthenticationMethod "CHAP","MSChapv2" \`\n  -L2tpPsk "(your PSK from .env SE_PSK)" \`\n  -EncryptionLevel "Optional" \`\n  -RememberCredential\nWrite-Host "Done. Username: ${user}"`;}
+  else{s=`# VPN Setup — SSTP\n# Run as Administrator\nAdd-VpnConnection \`\n  -Name "VPN (SSTP)" \`\n  -ServerAddress "${h}" \`\n  -TunnelType "Sstp" \`\n  -AuthenticationMethod "CHAP","MSChapv2" \`\n  -EncryptionLevel "Required" \`\n  -RememberCredential\nWrite-Host "Done. Username: ${user}"`;}
+  dlFile(s,'setup-vpn-'+type+'.ps1','text/plain');
+  toast('PowerShell script downloaded — run as Administrator','success');
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function dlFile(content, filename, mime) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
-  a.download = filename; a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.modal-backdrop').forEach(m => {
-  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
-});
-
+function fmtBytes(b){if(b<1024)return b+' B';if(b<1048576)return Math.round(b/1024)+' KB';if(b<1073741824)return Math.round(b/1048576)+' MB';return(b/1073741824).toFixed(1)+' GB';}
+function dlFile(content,filename,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:mime}));a.download=filename;a.click();URL.revokeObjectURL(a.href);}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-backdrop').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});});
 let toastTimer;
-function toast(msg, type = 'success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + type + ' show';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
-}
+function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500);}
+function timeSince(date){const s=Math.floor((Date.now()-date)/1000);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 
-function timeSince(date) {
-  const s = Math.floor((Date.now() - date) / 1000);
-  if (s < 60) return s + 's ago';
-  if (s < 3600) return Math.floor(s/60) + 'm ago';
-  if (s < 86400) return Math.floor(s/3600) + 'h ago';
-  return Math.floor(s/86400) + 'd ago';
-}
-
-
-// ── WireGuard Peer Management ─────────────────────────────────────────────────
-async function wgApi(path, method = 'GET', body = null) {
-  const opts = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': CFG.wgApiKey
-    }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch('/wg-api' + path, opts);
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.error || 'API error');
+// ── WireGuard API ─────────────────────────────────────────────────────────────
+async function wgApi(path,method='GET',body=null){
+  const opts={method,headers:{'Content-Type':'application/json','X-API-Key':CFG.wgApiKey}};
+  if(body) opts.body=JSON.stringify(body);
+  const r=await fetch('/wg-api'+path,opts);
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error||'API error');
   return d;
 }
 
-async function loadWgPeers() {
-  const tbody = document.getElementById('wg-peers-tbody');
-  tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
+async function loadWgPeers(){
+  const tbody=document.getElementById('wg-peers-tbody');
+  tbody.innerHTML='<tr><td colspan="4" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
   try {
-    const data = await wgApi('/peers');
-    if (!data.peers.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 20px">No peers found</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.peers.map(p => `<tr>
+    const data=await wgApi('/peers');
+    if(!data.peers.length){tbody.innerHTML='<tr><td colspan="4" style="color:var(--muted);padding:14px 20px">No peers found</td></tr>';return;}
+    tbody.innerHTML=data.peers.map(p=>`<tr>
       <td style="padding-left:20px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">${p.id}</td>
-      <td>
-        <div style="font-weight:500">${p.name}</div>
-      </td>
-      <td>
-        ${p.has_conf
-          ? `<span class="badge green"><i class="ti ti-check" style="font-size:11px"></i> Available</span>`
-          : `<span class="badge red"><i class="ti ti-x" style="font-size:11px"></i> Missing</span>`
-        }
-      </td>
+      <td><div style="font-weight:500">${p.name}</div></td>
+      <td>${p.has_conf?'<span class="badge green"><i class="ti ti-check" style="font-size:11px"></i> Available</span>':'<span class="badge red"><i class="ti ti-x" style="font-size:11px"></i> Missing</span>'}</td>
       <td style="padding-right:20px">
         <div style="display:flex;gap:6px">
-          <button class="btn sm" onclick="openRenamePeer('${p.id}','${p.name.replace(/'/g,"\'")}')">
-            <i class="ti ti-pencil"></i> Rename
-          </button>
-          ${p.has_conf ? `<button class="btn sm primary" onclick="dlWgConfById('${p.id}')">
-            <i class="ti ti-download"></i> Download
-          </button>` : ''}
+          <button class="btn sm" onclick="openRenamePeer('${p.id}','${p.name.replace(/'/g,"\\'")}')"><i class="ti ti-pencil"></i> Rename</button>
+          ${p.has_conf?`<button class="btn sm primary" onclick="dlWgConfById('${p.id}')"><i class="ti ti-download"></i> Download</button>`:''}
+          <button class="btn sm danger" onclick="deletePeer('${p.id}','${p.name}')"><i class="ti ti-trash"></i></button>
         </div>
       </td>
     </tr>`).join('');
-
-    // Also update the export page peer dropdown
-    const sel = document.getElementById('exp-wg-peer');
-    if (sel) {
-      sel.innerHTML = data.peers.map(p =>
-        `<option value="${p.id}">${p.name !== p.id ? p.name + ' (' + p.id + ')' : p.id}</option>`
-      ).join('');
-    }
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--red-text);padding:14px 20px">Error: ${e.message} — is the WG API running?</td></tr>`;
-  }
+    const sel=document.getElementById('exp-wg-peer');
+    if(sel) sel.innerHTML=data.peers.map(p=>`<option value="${p.id}">${p.name!==p.id?p.name+' ('+p.id+')':p.id}</option>`).join('');
+  } catch(e){tbody.innerHTML=`<tr><td colspan="4" style="color:var(--red-text);padding:14px 20px">Error: ${e.message}</td></tr>`;}
 }
 
-function openAddPeers() {
-  document.getElementById('add-peer-count').value = '1';
-  openModal('modal-addpeers');
-}
+function openAddPeers(){document.getElementById('add-peer-count').value='1';openModal('modal-addpeers');}
 
-async function doAddPeers() {
-  const count = parseInt(document.getElementById('add-peer-count').value) || 1;
-  const btn = document.querySelector('#modal-addpeers .btn.primary');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2"></i> Adding peers & restarting...';
+async function doAddPeers(){
+  const count=parseInt(document.getElementById('add-peer-count').value)||1;
+  const btn=document.querySelector('#modal-addpeers .btn.primary');
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Adding & restarting (~60s)...';
   try {
-    await wgApi('/peers/add', 'POST', { count });
-    toast(`${count} peer(s) added — WireGuard restarted`, 'success');
+    await wgApi('/peers/add','POST',{count});
+    toast(`${count} peer(s) added — WireGuard restarting, please wait ~60s...`,'success');
     closeModal('modal-addpeers');
-    loadWgPeers();
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-plus"></i> Add Peers & Restart';
-  }
+    setTimeout(loadWgPeers,35000);
+  } catch(e){toast('Error: '+e.message,'error');}
+  finally{btn.disabled=false; btn.innerHTML='<i class="ti ti-plus"></i> Add Peers & Restart';}
 }
 
-function openRenamePeer(id, currentName) {
-  document.getElementById('rename-peer-id').value = id;
-  document.getElementById('rename-peer-name').value = currentName === id ? '' : currentName;
-  document.getElementById('rename-peer-name').placeholder = id;
+function openRenamePeer(id,currentName){
+  document.getElementById('rename-peer-id').value=id;
+  document.getElementById('rename-peer-name').value=currentName===id?'':currentName;
+  document.getElementById('rename-peer-name').placeholder=id;
   openModal('modal-rename-peer');
 }
 
-async function doRenamePeer() {
-  const id = document.getElementById('rename-peer-id').value;
-  const name = document.getElementById('rename-peer-name').value.trim() || id;
-  try {
-    await wgApi('/peers/rename', 'POST', { id, name });
-    toast('Peer renamed', 'success');
-    closeModal('modal-rename-peer');
-    loadWgPeers();
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
+async function doRenamePeer(){
+  const id=document.getElementById('rename-peer-id').value;
+  const name=document.getElementById('rename-peer-name').value.trim()||id;
+  try { await wgApi('/peers/rename','POST',{id,name}); toast('Peer renamed','success'); closeModal('modal-rename-peer'); loadWgPeers(); }
+  catch(e){toast('Error: '+e.message,'error');}
 }
 
-async function dlWgConfById(peerId, forUnifi = false) {
+async function dlWgConfById(peerId,forUnifi=false){
   try {
-    const r = await fetch('/wg/' + peerId + '.conf');
-    if (!r.ok) throw new Error('Config not found');
-    let text = await r.text();
-    if (forUnifi) text = fixWgConfForUnifi(text);
-    dlFile(text, peerId + '.conf', 'text/plain');
-    toast('WireGuard config downloaded', 'success');
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
+    const r=await fetch('/wg/'+peerId+'.conf');
+    if(!r.ok) throw new Error('Config not found');
+    let text=await r.text();
+    if(forUnifi) text=fixWgConfForUnifi(text);
+    dlFile(text,peerId+'.conf','text/plain');
+    toast('WireGuard config downloaded','success');
+  } catch(e){toast('Error: '+e.message,'error');}
 }
 
-// ── Init port labels in HTML dropdowns ──────────────────────────────────────
-function initPorts() {
-  // Update all protocol option labels with CFG ports
-  document.querySelectorAll('select[id$="-proto"] option').forEach(opt => {
-    if (opt.value === 'udp') opt.textContent = `UDP :${CFG.ports.ovpnUdp} — faster`;
-    if (opt.value === 'tcp') opt.textContent = `TCP :${CFG.ports.ovpnTcp} — censorship bypass`;
+async function deletePeer(id,name){
+  if(!confirm(`Delete peer "${name}" (${id})?\n\nThis will permanently remove the peer config and restart WireGuard.\nThe UI will refresh automatically in ~35 seconds.\nThis cannot be undone.`)) return;
+  const btn=event.target.closest('button');
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i>';
+  try {
+    await wgApi('/peers/delete','POST',{id});
+    toast(`Peer ${name} deleted — WireGuard restarting, please wait ~35s...`,'success');
+    setTimeout(loadWgPeers,35000);
+  } catch(e){toast('Error: '+e.message,'error'); btn.disabled=false; btn.innerHTML='<i class="ti ti-trash"></i>';}
+}
+
+async function loadWgStats(){
+  const tbody=document.getElementById('wg-stats-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="6" style="color:var(--muted);padding:14px 0">Loading...</td></tr>';
+  try {
+    const stats=await wgApi('/wg-stats');
+    if(!stats.peers||!stats.peers.length){tbody.innerHTML='<tr><td colspan="6" style="color:var(--muted);padding:14px 0">No WireGuard peers found</td></tr>';return;}
+    tbody.innerHTML=stats.peers.map(p=>{
+      const lastHS=p.latest_handshake?timeSince(new Date(p.latest_handshake*1000))+' ago':'Never';
+      const isOnline=p.latest_handshake&&(Date.now()/1000-p.latest_handshake)<180;
+      return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">${p.peer_id}</td>
+        <td style="font-weight:500">${p.name}</td>
+        <td style="font-size:11px">${lastHS}</td>
+        <td style="font-size:11px;color:var(--muted)">${fmtBytes(p.transfer_rx||0)}</td>
+        <td style="font-size:11px;color:var(--muted)">${fmtBytes(p.transfer_tx||0)}</td>
+        <td><span class="badge ${isOnline?'green':'red'}">${isOnline?'Online':'Offline'}</span></td>
+      </tr>`;
+    }).join('');
+  } catch(e){if(tbody) tbody.innerHTML=`<tr><td colspan="6" style="color:var(--red-text);padding:14px 0">Error: ${e.message}</td></tr>`;}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function initPorts(){
+  document.querySelectorAll('select[id$="-proto"] option').forEach(opt=>{
+    if(opt.value==='udp') opt.textContent=`UDP :${CFG.ports.ovpnUdp} — faster`;
+    if(opt.value==='tcp') opt.textContent=`TCP :${CFG.ports.ovpnTcp} — censorship bypass`;
   });
-  // Linux option labels (no "censorship bypass" suffix)
-  const lo = document.getElementById('linux-ovpn-proto');
-  if (lo) {
-    lo.options[0].textContent = `UDP :${CFG.ports.ovpnUdp}`;
-    lo.options[1].textContent = `TCP :${CFG.ports.ovpnTcp}`;
-  }
-  // Pre-fill host field with CFG.serverIP
-  const hostField = document.getElementById('f-host');
-  if (hostField) hostField.value = CFG.serverIP;
+  const lo=document.getElementById('linux-ovpn-proto');
+  if(lo){lo.options[0].textContent=`UDP :${CFG.ports.ovpnUdp}`;lo.options[1].textContent=`TCP :${CFG.ports.ovpnTcp}`;}
+  document.getElementById('f-host').value=CFG.serverIP;
 }
 initPorts();
 </script>
