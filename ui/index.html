@@ -149,6 +149,7 @@ select option{background:var(--card)}
     <div class="nav-item" onclick="showPage('users',this)"><i class="ti ti-users" style="margin-right:6px"></i>Users</div>
     <div class="nav-item" onclick="showPage('sessions',this)"><i class="ti ti-wifi" style="margin-right:6px"></i>Sessions</div>
     <div class="nav-item" onclick="showPage('export',this)"><i class="ti ti-file-download" style="margin-right:6px"></i>Config Export</div>
+    <div class="nav-item" onclick="showPage('wireguard',this)"><i class="ti ti-antenna-bars-5" style="margin-right:6px"></i>WireGuard</div>
   </div>
 
   <div class="main">
@@ -544,10 +545,75 @@ sudo openvpn --config client.ovpn</div>
       </div>
 
     </div><!-- end export page -->
+
+    <!-- WIREGUARD MANAGEMENT -->
+    <div id="page-wireguard" class="page">
+      <div class="section-head">
+        <div class="section-title">WireGuard Peers</div>
+        <button class="btn primary" onclick="openAddPeers()"><i class="ti ti-plus"></i> Add Peers</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead style="background:var(--surface)">
+            <tr>
+              <th style="padding:12px 12px 12px 20px">ID</th>
+              <th style="padding:12px">Display Name</th>
+              <th style="padding:12px">Config</th>
+              <th style="padding:12px 20px 12px 12px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="wg-peers-tbody">
+            <tr><td colspan="4" style="color:var(--muted);padding:14px 20px">Loading peers...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="background:var(--amber-bg);border-color:#ba751730">
+        <div style="font-size:11px;color:var(--amber-text)">
+          <i class="ti ti-info-circle" style="margin-right:6px"></i>
+          Adding or removing peers will automatically restart the WireGuard container (~10 seconds downtime).
+          Existing peer configs and keys are preserved when adding new peers.
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <!-- MODALS -->
+
+<div id="modal-addpeers" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-title">Add WireGuard Peers</div>
+    <div class="form-group">
+      <label class="form-label">Number of peers to add</label>
+      <input type="number" id="add-peer-count" value="1" min="1" max="20" style="width:100%">
+    </div>
+    <p style="font-size:11px;color:var(--muted)">
+      New peers will be generated automatically. The WireGuard container will restart briefly (~10 seconds).
+      After restarting, new peer configs will appear in the table and Config Export page.
+    </p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-addpeers')">Cancel</button>
+      <button class="btn primary" onclick="doAddPeers()"><i class="ti ti-plus"></i> Add Peers & Restart</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-rename-peer" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-title">Rename Peer</div>
+    <input type="hidden" id="rename-peer-id">
+    <div class="form-group">
+      <label class="form-label">Display Name</label>
+      <input type="text" id="rename-peer-name" placeholder="e.g. John's Phone, Laptop, UniFi Gateway">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-rename-peer')">Cancel</button>
+      <button class="btn primary" onclick="doRenamePeer()"><i class="ti ti-check"></i> Save Name</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-adduser" class="modal-backdrop">
   <div class="modal">
     <div class="modal-title">Add VPN User</div>
@@ -580,7 +646,7 @@ sudo openvpn --config client.ovpn</div>
 // ═══════════════════════════════════════════════════════════════════════════
 const CFG = {
   // Your server's public IP or domain name
-  serverIP: '45.79.25.46',
+  serverIP: 'vpn.cosmoscraft.net',
 
   // SoftEther ports (must match docker-compose.yml)
   ports: {
@@ -599,6 +665,9 @@ const CFG = {
 
   // SoftEther hub name (auto-detected on login, but set here as fallback)
   hubName: 'DEFAULT',
+
+  // WireGuard API key — must match WG_API_KEY in .env
+  wgApiKey: 'ChangeMe_WIREGUARD_API_KEY_FROM_.env_FILE!',
 };
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -679,6 +748,7 @@ function showPage(name, el) {
   if (name === 'sessions') loadSessions();
   if (name === 'dashboard') loadDashboard();
   if (name === 'export') { populateExportUsers(); updateInfoPanels(); }
+  if (name === 'wireguard') loadWgPeers();
 }
 
 function switchDevice(name, el) {
@@ -887,8 +957,9 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-cipher AES-256-CBC
-auth SHA256
+data-ciphers AES-128-CBC:AES-256-CBC
+cipher AES-128-CBC
+auth SHA1
 auth-user-pass
 verb 3
 <ca>
@@ -929,10 +1000,7 @@ async function dlWgConf(forUnifi) {
   const origLabel = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Fetching...';
   try {
-    let text = await getWgConfText(peer);
-    if (forUnifi) text = fixWgConfForUnifi(text);
-    dlFile(text, peer + '.conf', 'text/plain');
-    toast('WireGuard config downloaded', 'success');
+    await dlWgConfById(peer, forUnifi);
   } catch(e) { toast('Error: ' + e.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = origLabel; }
 }
@@ -1138,6 +1206,123 @@ function timeSince(date) {
   if (s < 3600) return Math.floor(s/60) + 'm ago';
   if (s < 86400) return Math.floor(s/3600) + 'h ago';
   return Math.floor(s/86400) + 'd ago';
+}
+
+
+// ── WireGuard Peer Management ─────────────────────────────────────────────────
+async function wgApi(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': CFG.wgApiKey
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/wg-api' + path, opts);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'API error');
+  return d;
+}
+
+async function loadWgPeers() {
+  const tbody = document.getElementById('wg-peers-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 20px">Loading...</td></tr>';
+  try {
+    const data = await wgApi('/peers');
+    if (!data.peers.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 20px">No peers found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.peers.map(p => `<tr>
+      <td style="padding-left:20px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">${p.id}</td>
+      <td>
+        <div style="font-weight:500">${p.name}</div>
+      </td>
+      <td>
+        ${p.has_conf
+          ? `<span class="badge green"><i class="ti ti-check" style="font-size:11px"></i> Available</span>`
+          : `<span class="badge red"><i class="ti ti-x" style="font-size:11px"></i> Missing</span>`
+        }
+      </td>
+      <td style="padding-right:20px">
+        <div style="display:flex;gap:6px">
+          <button class="btn sm" onclick="openRenamePeer('${p.id}','${p.name.replace(/'/g,"\'")}')">
+            <i class="ti ti-pencil"></i> Rename
+          </button>
+          ${p.has_conf ? `<button class="btn sm primary" onclick="dlWgConfById('${p.id}')">
+            <i class="ti ti-download"></i> Download
+          </button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+
+    // Also update the export page peer dropdown
+    const sel = document.getElementById('exp-wg-peer');
+    if (sel) {
+      sel.innerHTML = data.peers.map(p =>
+        `<option value="${p.id}">${p.name !== p.id ? p.name + ' (' + p.id + ')' : p.id}</option>`
+      ).join('');
+    }
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--red-text);padding:14px 20px">Error: ${e.message} — is the WG API running?</td></tr>`;
+  }
+}
+
+function openAddPeers() {
+  document.getElementById('add-peer-count').value = '1';
+  openModal('modal-addpeers');
+}
+
+async function doAddPeers() {
+  const count = parseInt(document.getElementById('add-peer-count').value) || 1;
+  const btn = document.querySelector('#modal-addpeers .btn.primary');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Adding peers & restarting...';
+  try {
+    await wgApi('/peers/add', 'POST', { count });
+    toast(`${count} peer(s) added — WireGuard restarted`, 'success');
+    closeModal('modal-addpeers');
+    loadWgPeers();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus"></i> Add Peers & Restart';
+  }
+}
+
+function openRenamePeer(id, currentName) {
+  document.getElementById('rename-peer-id').value = id;
+  document.getElementById('rename-peer-name').value = currentName === id ? '' : currentName;
+  document.getElementById('rename-peer-name').placeholder = id;
+  openModal('modal-rename-peer');
+}
+
+async function doRenamePeer() {
+  const id = document.getElementById('rename-peer-id').value;
+  const name = document.getElementById('rename-peer-name').value.trim() || id;
+  try {
+    await wgApi('/peers/rename', 'POST', { id, name });
+    toast('Peer renamed', 'success');
+    closeModal('modal-rename-peer');
+    loadWgPeers();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function dlWgConfById(peerId, forUnifi = false) {
+  try {
+    const r = await fetch('/wg/' + peerId + '.conf');
+    if (!r.ok) throw new Error('Config not found');
+    let text = await r.text();
+    if (forUnifi) text = fixWgConfForUnifi(text);
+    dlFile(text, peerId + '.conf', 'text/plain');
+    toast('WireGuard config downloaded', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 // ── Init port labels in HTML dropdowns ──────────────────────────────────────
