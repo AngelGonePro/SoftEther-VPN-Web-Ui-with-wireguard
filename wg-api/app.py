@@ -86,6 +86,66 @@ def get_docker_network():
     print(f'Using network: {network}', flush=True)
     return network
 
+def parse_public_ips(env):
+    raw = env.get('PUBLIC_IPS', '').strip()
+    if not raw:
+        return []
+    ips = []
+    for entry in raw.split(','):
+        ip = entry.strip().split('/')[0]
+        if re.match(r'^\d{1,3}(\.\d{1,3}){3}$', ip):
+            ips.append(ip)
+        else:
+            print(f'parse_public_ips: skipping "{entry.strip()}" — not a bare IPv4', flush=True)
+    return ips
+
+
+def patch_wg0_conf(public_ips, lan_ip):
+    if not public_ips:
+        print('patch_wg0_conf: no PUBLIC_IPS, skipping', flush=True)
+        return
+    if not lan_ip:
+        print('patch_wg0_conf: LAN_IP not set, skipping', flush=True)
+        return
+    wg_conf_path = os.path.join(WG_DATA, 'wg_confs', 'wg0.conf')
+    for _ in range(10):
+        if os.path.exists(wg_conf_path):
+            break
+        time.sleep(2)
+    else:
+        print('patch_wg0_conf: wg0.conf not found after 20s, skipping', flush=True)
+        return
+    with open(wg_conf_path, 'r') as f:
+        content = f.read()
+    if 'hairpin' in content:
+        print('patch_wg0_conf: already patched, skipping', flush=True)
+        return
+    up_rules, down_rules = [], []
+    for ip in public_ips:
+        cidr = f'{ip}/32'
+        up_rules.append(f'iptables -t nat -A OUTPUT -d {cidr} -j DNAT --to-destination {lan_ip}')
+        up_rules.append(f'iptables -t nat -A POSTROUTING -d {lan_ip} -j MASQUERADE')
+        up_rules.append(f'iptables -t nat -A POSTROUTING -s {lan_ip} -j MASQUERADE')
+        down_rules.append(f'iptables -t nat -D OUTPUT -d {cidr} -j DNAT --to-destination {lan_ip}')
+        down_rules.append(f'iptables -t nat -D POSTROUTING -d {lan_ip} -j MASQUERADE')
+        down_rules.append(f'iptables -t nat -D POSTROUTING -s {lan_ip} -j MASQUERADE')
+    hairpin_postup   = 'PostUp = '   + '; '.join(up_rules)   + '  # hairpin'
+    hairpin_postdown = 'PostDown = ' + '; '.join(down_rules) + '  # hairpin'
+    if '\n[Peer]' in content:
+        content = content.replace('\n[Peer]', f'\n{hairpin_postup}\n{hairpin_postdown}\n\n[Peer]', 1)
+    else:
+        content += f'\n{hairpin_postup}\n{hairpin_postdown}\n'
+    with open(wg_conf_path, 'w') as f:
+        f.write(content)
+    print(f'patch_wg0_conf: patched {wg_conf_path}', flush=True)
+    print(f'  LAN_IP     : {lan_ip}', flush=True)
+    print(f'  PUBLIC_IPS : {", ".join(public_ips)} (written as /32)', flush=True)
+    for cmd in [['wg-quick', 'down', 'wg0'], ['wg-quick', 'up', 'wg0']]:
+        r = subprocess.run(['docker', 'exec', WG_CONTAINER] + cmd,
+                          capture_output=True, text=True, timeout=15)
+        print(f'{" ".join(cmd)}: rc={r.returncode} {r.stderr.strip()}', flush=True)
+
+
 def recreate_wireguard(new_count):
     env = read_env()
     host_wg_data = env.get('HOST_WG_DATA', os.environ.get('HOST_WG_DATA', ''))
@@ -95,9 +155,24 @@ def recreate_wireguard(new_count):
 
     print(f'host_wg_data: {host_wg_data}', flush=True)
 
-    # Force stop and remove — ignore errors
+    # Stop and remove the existing wireguard container before recreating.
+    # Labels on the new container ensure docker compose down picks it up.
     subprocess.run(['docker', 'stop', WG_CONTAINER], capture_output=True, timeout=30)
     subprocess.run(['docker', 'rm', '-f', WG_CONTAINER], capture_output=True, timeout=30)
+
+    # Save the server private key before wiping wg_confs so existing peer
+    # configs remain valid after regeneration — without this every recreate
+    # generates a new server keypair and all clients need new configs.
+    saved_privkey = None
+    wg_conf_path = os.path.join(WG_DATA, 'wg_confs', 'wg0.conf')
+    if os.path.exists(wg_conf_path):
+        with open(wg_conf_path) as f:
+            for line in f:
+                if line.strip().startswith('PrivateKey'):
+                    saved_privkey = line.strip().split('=', 1)[1].strip()
+                    break
+        if saved_privkey:
+            print(f'Saved server PrivateKey for restoration', flush=True)
 
     # Delete all wg_confs to force full peer regeneration
     wg_confs = os.path.join(WG_DATA, 'wg_confs')
@@ -113,7 +188,7 @@ def recreate_wireguard(new_count):
     result = subprocess.run([
         'docker', 'run', '-d',
         '--name', WG_CONTAINER,
-        '--restart', 'unless-stopped',
+        '--restart', 'no',
         '--cap-add', 'NET_ADMIN',
         '--cap-add', 'SYS_MODULE',
         '--sysctl', 'net.ipv4.conf.all.src_valid_mark=1',
@@ -123,12 +198,14 @@ def recreate_wireguard(new_count):
         '-e', f'PEERS={new_count}',
         '-e', 'PEERDNS=auto',
         '-e', 'INTERNAL_SUBNET=10.13.13.0',
-        '-e', 'ALLOWEDIPS=0.0.0.0/0',
+        '-e', f'ALLOWEDIPS={env.get("VPN_ROUTES", "0.0.0.0/0")}',
         '-e', 'LOG_CONFS=true',
         '-v', f'{host_wg_data}:/config',
         '-v', '/lib/modules:/lib/modules:ro',
         '-p', f'{env.get("PORT_WIREGUARD", "51820")}:51820/udp',
         '--network', network,
+        '--label', 'com.docker.compose.project=softether-vpn',
+        '--label', 'com.docker.compose.service=wireguard',
         'lscr.io/linuxserver/wireguard:latest'
     ], capture_output=True, text=True, timeout=60)
 
@@ -151,7 +228,31 @@ def recreate_wireguard(new_count):
     else:
         print(f'Timeout waiting for {new_peer}', flush=True)
 
+    # Restore the saved server private key so existing peer configs stay valid.
+    # The container generates a new keypair on first run — we overwrite it with
+    # the original so clients never need to re-import their configs.
+    if saved_privkey and os.path.exists(wg_conf_path):
+        with open(wg_conf_path, 'r') as f:
+            conf = f.read()
+        # Replace the newly generated PrivateKey with the saved one
+        conf = re.sub(r'^PrivateKey\s*=\s*.+$', f'PrivateKey = {saved_privkey}',
+                      conf, flags=re.MULTILINE)
+        with open(wg_conf_path, 'w') as f:
+            f.write(conf)
+        print(f'Restored server PrivateKey — existing peer configs remain valid', flush=True)
+        # Restart the container so it uses the restored key
+        subprocess.run(['docker', 'restart', WG_CONTAINER], capture_output=True, timeout=30)
+        time.sleep(5)
+    elif not saved_privkey:
+        print('No saved PrivateKey (first run) — this is normal', flush=True)
+
     subprocess.run(['chmod', '-R', 'a+rX', WG_DATA], capture_output=True)
+
+    env2 = read_env()
+    public_ips = parse_public_ips(env2)
+    lan_ip = env2.get('LAN_IP', '').strip()
+    patch_wg0_conf(public_ips, lan_ip)
+
     return True, 'ok'
 
 def delete_peer(peer_id):
@@ -226,6 +327,40 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'peers': get_peers(), 'total': get_peer_count()})
         elif parsed.path == '/health':
             self.send_json({'status': 'ok'})
+        elif parsed.path == '/config':
+            env = read_env()
+            raw_routes = env.get('VPN_ROUTES', '0.0.0.0/0').strip()
+            vpn_routes = [r.strip() for r in raw_routes.split(',') if r.strip()]
+            self.send_json({
+                'wgApiKey':   env.get('WG_API_KEY',      API_KEY),
+                'serverIP':   env.get('SERVER_IP',        ''),
+                'wgPort':     int(env.get('PORT_WIREGUARD', 51820)),
+                'vpnRoutes':  vpn_routes,
+                'ports': {
+                    'ovpnUdp':  int(env.get('PORT_OVPN_UDP',  9194)),
+                    'ovpnTcp':  int(env.get('PORT_OVPN_TCP',  8443)),
+                    'sslVpn':   int(env.get('PORT_SSL_ALT',   9992)),
+                    'l2tp':     int(env.get('PORT_L2TP',      9701)),
+                    'ikev2':    int(env.get('PORT_IKEV2',     9000)),
+                    'ikev2Nat': int(env.get('PORT_IKEV2_NAT', 9500)),
+                    'jsonRpc':  int(env.get('PORT_JSONRPC',   9555)),
+                    'webUi':    int(env.get('PORT_WEBUI',     9765)),
+                },
+            })
+        elif parsed.path == '/config/hairpin-status':
+            if not self.check_auth(): return
+            wg_conf_path = os.path.join(WG_DATA, 'wg_confs', 'wg0.conf')
+            patched = False
+            if os.path.exists(wg_conf_path):
+                with open(wg_conf_path) as f:
+                    patched = 'hairpin' in f.read()
+            env = read_env()
+            self.send_json({
+                'patched': patched,
+                'public_ips': parse_public_ips(env),
+                'lan_ip': env.get('LAN_IP', ''),
+                'wg_conf_exists': os.path.exists(wg_conf_path),
+            })
         elif parsed.path == '/wg-stats':
             if not self.check_auth(): return
             result = subprocess.run(
@@ -308,12 +443,86 @@ class Handler(BaseHTTPRequestHandler):
             ok, log = delete_peer(peer_id)
             self.send_json({'ok': ok, 'log': log})
 
+        elif parsed.path == '/config/apply-hairpin':
+            env = read_env()
+            public_ips = parse_public_ips(env)
+            lan_ip = env.get('LAN_IP', '').strip()
+            if not public_ips:
+                self.send_json({'error': 'PUBLIC_IPS not set in .env'}, 400)
+                return
+            if not lan_ip:
+                self.send_json({'error': 'LAN_IP not set in .env'}, 400)
+                return
+            patch_wg0_conf(public_ips, lan_ip)
+            wg_conf_path = os.path.join(WG_DATA, 'wg_confs', 'wg0.conf')
+            patched = os.path.exists(wg_conf_path) and 'hairpin' in open(wg_conf_path).read()
+            self.send_json({'ok': True, 'patched': patched,
+                            'public_ips': public_ips, 'lan_ip': lan_ip})
         else:
             self.send_json({'error': 'Not found'}, 404)
 
 if __name__ == '__main__':
+    import signal
+
+    def shutdown(signum, frame):
+        # Stop wireguard when wg-api shuts down so docker compose down
+        # can remove the network cleanly in one command.
+        print('wg-api shutting down — stopping wireguard...', flush=True)
+        subprocess.run(['docker', 'stop', WG_CONTAINER], capture_output=True, timeout=30)
+        subprocess.run(['docker', 'rm', '-f', WG_CONTAINER], capture_output=True, timeout=30)
+        print('wireguard stopped', flush=True)
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+
     port = int(os.environ.get('PORT', 8099))
+    # Start wireguard on boot if not already running
+    _check = subprocess.run(['docker', 'inspect', '--format', '{{.State.Running}}', WG_CONTAINER],
+                            capture_output=True, text=True)
+    if _check.stdout.strip() != 'true':
+        print('wireguard not running — starting it...', flush=True)
+        _env = read_env()
+        _host_wg_data = _env.get('HOST_WG_DATA', os.environ.get('HOST_WG_DATA', ''))
+        _network = get_docker_network()
+        _peers = _env.get('WG_PEERS', '5')
+        subprocess.run([
+            'docker', 'run', '-d',
+            '--name', WG_CONTAINER,
+            '--restart', 'no',
+            '--cap-add', 'NET_ADMIN', '--cap-add', 'SYS_MODULE',
+            '--sysctl', 'net.ipv4.conf.all.src_valid_mark=1',
+            '-e', 'PUID=1000', '-e', 'PGID=1000', '-e', 'TZ=UTC',
+            '-e', f'SERVERURL={_env.get("SERVER_IP", "")}',
+            '-e', f'SERVERPORT={_env.get("PORT_WIREGUARD", "51820")}',
+            '-e', f'PEERS={_peers}',
+            '-e', 'PEERDNS=auto', '-e', 'INTERNAL_SUBNET=10.13.13.0',
+            '-e', f'ALLOWEDIPS={_env.get("VPN_ROUTES", "0.0.0.0/0")}',
+            '-e', 'LOG_CONFS=true',
+            '-v', f'{_host_wg_data}:/config',
+            '-v', '/lib/modules:/lib/modules:ro',
+            '-p', f'{_env.get("PORT_WIREGUARD", "51820")}:51820/udp',
+            '--network', _network,
+            'lscr.io/linuxserver/wireguard:latest'
+        ], capture_output=True, timeout=60)
+        print('wireguard started', flush=True)
+    else:
+        print('wireguard already running', flush=True)
     print(f'WireGuard API starting on port {port}', flush=True)
     print(f'HOST_WG_DATA: {os.environ.get("HOST_WG_DATA", "NOT SET")}', flush=True)
     print(f'WG_CONTAINER: {WG_CONTAINER}', flush=True)
+    _startup_env = {}
+    try:
+        with open(os.path.join(COMPOSE_DIR, '.env')) as _f:
+            for _l in _f:
+                _l = _l.strip()
+                if '=' in _l and not _l.startswith('#'):
+                    _k, _v = _l.split('=', 1)
+                    _startup_env[_k.strip()] = _v.strip()
+    except Exception as _e:
+        print(f'.env read error at startup: {_e}', flush=True)
+    _ips = parse_public_ips(_startup_env)
+    _lan = _startup_env.get('LAN_IP', 'NOT SET')
+    print(f'PUBLIC_IPS : {", ".join(_ips) if _ips else "NOT SET"}', flush=True)
+    print(f'LAN_IP     : {_lan}', flush=True)
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
