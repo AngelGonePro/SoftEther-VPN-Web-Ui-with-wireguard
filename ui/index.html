@@ -529,6 +529,7 @@ sudo systemctl enable wg-quick@wg0</div>
           </tbody>
         </table>
       </div>
+
       <div class="card" style="background:var(--amber-bg);border-color:#ba751730">
         <div style="font-size:11px;color:var(--amber-text);line-height:1.8">
           <i class="ti ti-info-circle" style="margin-right:6px"></i>
@@ -607,38 +608,27 @@ sudo systemctl enable wg-quick@wg0</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-// SERVER CONFIGURATION — Edit these values when deploying on a new server
+// SERVER CONFIGURATION — all values are loaded automatically from .env
+// via GET /wg-api/config at startup. No manual edits needed here.
 // ═══════════════════════════════════════════════════════════════════════════
 const CFG = {
-  // Your server's public IP or domain name
-  serverIP: 'YOUR_SERVER_IP_OR_DOMAIN',
-
-  // SoftEther ports — must match .env
+  serverIP: '',
   ports: {
-    ovpnUdp:  9194,   // PORT_OVPN_UDP
-    ovpnTcp:  8443,   // PORT_OVPN_TCP
-    sslVpn:   9992,   // PORT_SSL_ALT
-    l2tp:     9701,   // PORT_L2TP
-    ikev2:    9000,   // PORT_IKEV2
-    ikev2Nat: 9500,   // PORT_IKEV2_NAT
-    jsonRpc:  9555,   // PORT_JSONRPC
-    webUi:    9765,   // PORT_WEBUI
+    ovpnUdp:  9194,
+    ovpnTcp:  8443,
+    sslVpn:   9992,
+    l2tp:     9701,
+    ikev2:    9000,
+    ikev2Nat: 9500,
+    jsonRpc:  9555,
+    webUi:    9765,
   },
-
-  // WireGuard port — must match .env PORT_WIREGUARD
-  wgPort: 51820,
-
-  // SoftEther hub name (auto-detected on login)
-  hubName: 'DEFAULT',
-
-  // WireGuard API key — must match .env WG_API_KEY
-  // Set this using Python to avoid shell escaping issues with special chars:
-  //   python3 -c "
-  //     with open('ui/index.html','r') as f: c=f.read()
-  //     c=c.replace(\"wgApiKey: 'ChangeMe_WgApiKey'\",\"wgApiKey: 'YOUR_KEY'\")
-  //     with open('ui/index.html','w') as f: f.write(c)
-  //   "
-  wgApiKey: 'ChangeMe_WgApiKey',
+  wgPort:     51820,
+  hubName:    'DEFAULT',
+  wgApiKey:   '',
+  // Comma-separated CIDRs pushed to VPN clients — loaded from VPN_ROUTES in .env
+  // Default 0.0.0.0/0 = full tunnel. Example split: ['10.0.0.0/8','192.168.0.0/16']
+  vpnRoutes:  ['0.0.0.0/0'],
 };
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -660,6 +650,9 @@ async function doLogin() {
   const btn = document.getElementById('login-btn');
   btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Connecting...';
   document.getElementById('login-err').classList.remove('show');
+  // Wait for bootConfig to finish so CFG.wgApiKey is always populated
+  // before any wgApi() call fires — fixes 401 on fast logins.
+  await _configReady;
   S.host = document.getElementById('f-host').value.trim();
   S.pass = document.getElementById('f-pass').value;
   if (!S.host) { showErr('Enter your server public IP'); btn.disabled=false; btn.innerHTML='<i class="ti ti-login"></i> Connect'; return; }
@@ -877,9 +870,24 @@ async function genOvpnConfig(proto) {
     } catch(e){throw new Error('Could not fetch server certificate: '+e.message);}
   }
   const user=getExportUser(); const isUdp=proto==='udp';
+  // Build routing directives from CFG.vpnRoutes (set from VPN_ROUTES in .env)
+  const routes = CFG.vpnRoutes || ['0.0.0.0/0'];
+  const isFullTunnel = routes.length === 1 && routes[0] === '0.0.0.0/0';
+  let routeLines;
+  if (isFullTunnel) {
+    routeLines = 'redirect-gateway def1 bypass-dhcp';
+  } else {
+    // Split tunnel: one "route x.x.x.x y.y.y.y" line per CIDR
+    routeLines = routes.map(cidr => {
+      const [net, bits] = cidr.split('/');
+      const mask = bits ? cidrToMask(parseInt(bits)) : '255.255.255.255';
+      return `route ${net} ${mask}`;
+    }).join('\n');
+  }
   return `# SoftEther VPN — OpenVPN config
 # User: ${user}  Hub: ${S.hub}
 # Generated: ${new Date().toISOString()}
+# Routes: ${routes.join(', ')}
 
 client
 dev tun
@@ -897,9 +905,16 @@ auth-user-pass
 keepalive 10 60
 explicit-exit-notify 0
 verb 3
+${routeLines}
 <ca>
 ${S.cert}
 </ca>`;
+}
+
+// Convert CIDR prefix length to dotted subnet mask
+function cidrToMask(bits) {
+  const mask = (0xffffffff << (32 - bits)) >>> 0;
+  return [(mask>>>24)&255,(mask>>>16)&255,(mask>>>8)&255,mask&255].join('.');
 }
 
 async function genAndDownloadOvpn(selectId) {
@@ -1126,7 +1141,36 @@ function initPorts(){
   if(lo){lo.options[0].textContent=`UDP :${CFG.ports.ovpnUdp}`;lo.options[1].textContent=`TCP :${CFG.ports.ovpnTcp}`;}
   document.getElementById('f-host').value=CFG.serverIP;
 }
-initPorts();
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+// Fetches /wg-api/config (public, no auth) which reads .env server-side and
+// returns every value the UI needs. Stored as a promise so doLogin() can
+// await it — guaranteeing CFG.wgApiKey is populated before any wgApi() call.
+const _configReady = (async function bootConfig() {
+  try {
+    const r = await fetch('/wg-api/config');
+    if (!r.ok) {
+      console.warn('[bootConfig] /wg-api/config returned', r.status, '— using built-in defaults');
+    } else {
+      const d = await r.json();
+      if (d.wgApiKey)   CFG.wgApiKey  = d.wgApiKey;
+      if (d.serverIP)   { CFG.serverIP = d.serverIP; S.host = d.serverIP; }
+      if (d.wgPort)     CFG.wgPort    = d.wgPort;
+      if (d.ports)      Object.assign(CFG.ports, d.ports);
+      if (d.vpnRoutes && d.vpnRoutes.length) CFG.vpnRoutes = d.vpnRoutes;
+      // Pre-fill the server IP field on the login screen
+      const fHost = document.getElementById('f-host');
+      if (fHost && d.serverIP) fHost.value = d.serverIP;
+      console.log('[bootConfig] loaded — serverIP:', CFG.serverIP,
+                  '| wgApiKey set:', !!CFG.wgApiKey,
+                  '| wgPort:', CFG.wgPort);
+    }
+  } catch(e) {
+    console.warn('[bootConfig] fetch failed — using built-in defaults:', e);
+  }
+  // Always run initPorts after config loads (or fails) so the UI is never blank
+  initPorts();
+})();
 </script>
 </body>
 </html>
