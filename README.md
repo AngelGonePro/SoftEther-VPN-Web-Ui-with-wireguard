@@ -10,18 +10,19 @@ TESTED DEVICES ARE WINDOWS, ANDROID, AND UniFi OS VPN Client. Issues with others
 ## File Structure
 ```
 ~/softether-vpn/
-├── .env                          ← copy from .env.example, edit for each server
+├── .env                          ← copy env.example, fill in your values
 ├── docker-compose.yml
-├── vpn_server.config             ← touch this on first deploy, never delete after
+├── hairpin.sh
+├── vpn_server.config             ← your existing SoftEther config
 ├── softether/
 │   ├── Dockerfile
 │   └── entrypoint-wrapper.sh
 ├── wg-api/
 │   ├── Dockerfile
 │   └── app.py
-├── wg-data/                      ← auto-created by WireGuard
+├── wg-data/                      ← create empty, wg-api fills it
 └── ui/
-    ├── index.html                ← edit CFG block for each server
+    ├── index.html
     └── nginx.conf
 ```
 
@@ -41,16 +42,12 @@ cp ~/softether-vpn/.env.example ~/softether-vpn/.env
 nano ~/softether-vpn/.env
 # Change: SERVER_IP, HOST_WG_DATA, all passwords, ports if needed
 
-# 4. Edit CFG block in index.html
-nano ~/softether-vpn/ui/index.html
-# Ctrl+W → search "const CFG" → update serverIP, ports, wgPort
+# 4. Fix WireGuard permissions
+chmod -R a+rX ~/softether-vpn/wg-data/
 
-# 5. Set API key in index.html (use Python — avoids special char issues)
-python3 -c "
-with open('/root/softether-vpn/ui/index.html','r') as f: c=f.read()
-c=c.replace(\"wgApiKey: 'ChangeMe_WgApiKey'\",\"wgApiKey: 'YOUR_WG_API_KEY'\")
-with open('/root/softether-vpn/ui/index.html','w') as f: f.write(c)
-"
+# 5.
+mkdir -p wg-data
+chmod +x hairpin.sh softether/entrypoint-wrapper.sh
 
 # 6. Create empty SoftEther config
 touch ~/softether-vpn/vpn_server.config
@@ -59,9 +56,9 @@ touch ~/softether-vpn/vpn_server.config
 cd ~/softether-vpn
 docker compose up -d --build
 
-# 8. Fix WireGuard permissions
-sleep 30
-chmod -R a+rX ~/softether-vpn/wg-data/
+# 8. Stop/Start Everything
+Stop: docker compose stop
+Start: docker compose up -d --build
 ```
 
 ---
@@ -113,33 +110,9 @@ const CFG = {
 
 PLEASE WAIT 20 SECONDS AFTER CONTAINER FULLY STARTS TO LOGIN
 
-For IPs and port configs, it's all in the .env file, use `nano .env`
-AND CHANGE THE CONFIGS IN THE `index.html` with `nano ~/softether-vpn/` and do `ctrl+W` and search for `const CFG = {` WHICH INCLUDES COPYING the WireGuard API Key from the `.env` to the `wgApiKey` under `const CFG = {` in the `index.html`!
+For IPs and port configs, it's all in the `.env` file, use `nano .env`
 
-Starting:
-```
-touch ~/softether-vpn/vpn_server.config
-chmod -R a+rX ~/softether-vpn/wg-data/
-docker compose up -d --build
-```
-
-File paths:
-```
-~/softether-vpn/
-├── .env                          ← edit this for each server
-├── docker-compose.yml
-├── vpn_server.config             ← touch this on first run
-├── softether/
-│   ├── Dockerfile
-│   └── entrypoint-wrapper.sh
-├── wg-api/
-│   ├── Dockerfile
-│   └── app.py
-├── wg-data/                      ← auto-created by WireGuard
-└── ui/
-    ├── index.html                ← edit CFG block for each server
-    └── nginx.conf
-```
+OLD INFO: AND CHANGE THE CONFIGS IN THE `index.html` with `nano ~/softether-vpn/` and do `ctrl+W` and search for `const CFG = {` WHICH INCLUDES COPYING the WireGuard API Key from the `.env` to the `wgApiKey` under `const CFG = {` in the `index.html`!
 
 After changing the `.env` if you wanted to change ports, etc.
 Use
@@ -150,4 +123,5 @@ rm vpn_server.config
 touch vpn_server.config
 docker compose up -d --build
 ```
+
 But redownload configs after as it will make whole new ones.
