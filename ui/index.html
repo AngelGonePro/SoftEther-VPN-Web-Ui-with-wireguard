@@ -926,10 +926,13 @@ async function genAndDownloadOvpn(selectId) {
   finally{btn.disabled=false; btn.innerHTML='<i class="ti ti-download"></i> Download .ovpn';}
 }
 
-function fixWgConfForUnifi(text) {
+function fixWgConf(text) {
+  // Fix issues in server-generated peer configs that cause client failures:
+  // 1. Add /32 to Address if missing (required by all WireGuard clients)
+  // 2. Remove ListenPort (server-side only, breaks Windows/iOS/macOS clients)
   return text
     .replace(/^(Address\s*=\s*\d+\.\d+\.\d+\.\d+)(\/\d+)?/m,'$1/32')
-    .replace(/^ListenPort\s*=.*$/m,'');
+    .replace(/^ListenPort\s*=.*$\n?/m,'');
 }
 
 async function dlWgConf(forUnifi) {
@@ -937,7 +940,7 @@ async function dlWgConf(forUnifi) {
   const btn=event.target.closest('button');
   const orig=btn.innerHTML;
   btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Fetching...';
-  try { await dlWgConfById(peer,forUnifi); }
+  try { await dlWgConfById(peer, true); }
   catch(e){toast('Error: '+e.message,'error');}
   finally{btn.disabled=false; btn.innerHTML=orig;}
 }
@@ -1092,7 +1095,8 @@ async function dlWgConfById(peerId,forUnifi=false){
     const r=await fetch('/wg/'+peerId+'.conf');
     if(!r.ok) throw new Error('Config not found');
     let text=await r.text();
-    if(forUnifi) text=fixWgConfForUnifi(text);
+    // Always fix Address /32 and remove ListenPort — required for all clients
+    text=fixWgConf(text);
     dlFile(text,peerId+'.conf','text/plain');
     toast('WireGuard config downloaded','success');
   } catch(e){toast('Error: '+e.message,'error');}
