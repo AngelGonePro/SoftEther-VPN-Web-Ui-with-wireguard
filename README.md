@@ -1,7 +1,7 @@
 # WARNING: STILL IN BETA DEVELOPMENT | SoftEther-VPN-Web-Ui-with-wireguard
 SoftEther VPN Web Ui With Wireguard Support and Custom port config
 
-TESTED DEVICES ARE WINDOWS, ANDROID, AND UniFi OS VPN Client. Issues with others feel free to make a puul request with detialed logs!!!!
+TESTED DEVICES ARE WINDOWS, ANDROID, AND UniFi OS VPN Client. Issues with others feel free to make a pull request with detialed logs!!!!
 
 `Full_VPN_Config.zip` has all the files inside if you use `curl` on linux or download it.
 
