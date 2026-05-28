@@ -96,26 +96,6 @@ WG_API_KEY=...
 # Change any ports that conflict with existing services
 ```
 
-**`ui/index.html`** CFG block:
-```js
-const CFG = {
-  serverIP: 'NEW_IP_OR_DOMAIN',  // ← change
-  ports: {
-    ovpnUdp:  9194,   // match .env PORT_OVPN_UDP
-    ovpnTcp:  8443,   // match .env PORT_OVPN_TCP
-    sslVpn:   9992,
-    l2tp:     9701,
-    ikev2:    9000,
-    ikev2Nat: 9500,
-    jsonRpc:  9555,
-    webUi:    9765,
-  },
-  wgPort: 51820,      // match .env PORT_WIREGUARD
-  hubName: 'DEFAULT',
-  wgApiKey: 'YOUR_WG_API_KEY',  // match .env WG_API_KEY
-};
-```
-
 ---
 
 ## Important Rules
