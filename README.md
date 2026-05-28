@@ -5,6 +5,8 @@ TESTED DEVICES ARE WINDOWS, ANDROID, AND UniFi OS VPN Client. Issues with others
 
 SERVER TESTED ON Linux - Debian 12
 
+AFTER FIRST DEPLOYMENT, YOU MUST ADD A PEER TO WIREGUARD IN ORDER FOR PEERS TO POPULATE.
+
 `Full_VPN_Config.zip` has all the files inside if you use `curl` on linux or download it.
 
 `WindScribe-Upstream` FOLDER IS ONLY FOR ROUTING TRAFFIC THROUGH WINDSCRIBE VPN
@@ -47,10 +49,10 @@ nano ~/softether-vpn/.env
 # Change: SERVER_IP, HOST_WG_DATA, all passwords, ports if needed
 
 # 4. Fix WireGuard permissions
+mkdir -p wg-data
 chmod -R a+rX ~/softether-vpn/wg-data/
 
 # 5.
-mkdir -p wg-data
 chmod +x hairpin.sh softether/entrypoint-wrapper.sh
 
 # 6. Create empty SoftEther config
