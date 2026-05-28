@@ -13,7 +13,7 @@ AFTER FIRST DEPLOYMENT, YOU MUST ADD A PEER TO WIREGUARD IN ORDER FOR PEERS TO P
 
 `WindScribe-Upstream` FOLDER IS ONLY FOR ROUTING TRAFFIC THROUGH WINDSCRIBE VPN
 
-FOR `WindScrive-Upstream` if you edit the `.env`, then run this:
+FOR `WindScribe-Upstream` if you edit the `.env`, then run this:
 ```
 cd ~/softether-vpn
 docker compose down
