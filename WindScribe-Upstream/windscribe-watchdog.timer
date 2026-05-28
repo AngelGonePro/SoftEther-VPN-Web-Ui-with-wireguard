@@ -1,0 +1,11 @@
+[Unit]
+Description=Windscribe Watchdog Timer
+After=windscribe-routing.service
+
+[Timer]
+OnBootSec=120
+OnUnitActiveSec=60
+Unit=windscribe-watchdog.service
+
+[Install]
+WantedBy=timers.target

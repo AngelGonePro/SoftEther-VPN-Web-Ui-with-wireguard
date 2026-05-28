@@ -1,0 +1,6 @@
+[Unit]
+Description=Windscribe Watchdog Check
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/windscribe-watchdog.sh
