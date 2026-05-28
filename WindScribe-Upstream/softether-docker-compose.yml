@@ -1,0 +1,89 @@
+services:
+
+  softether:
+    build: ./softether
+    container_name: softether
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - SPW=${SE_SERVER_PASSWORD}
+      - HPW=${SE_HUB_PASSWORD}
+      - USERS=${SE_USERS}
+      - PSK=${SE_PSK}
+      - PUBLIC_IPS=${PUBLIC_IPS}
+      - LAN_IP=${LAN_IP}
+    volumes:
+      - ./vpn_server.config:/usr/vpnserver/vpn_server.config
+    ports:
+      - "${PORT_IKEV2}:500/udp"
+      - "${PORT_IKEV2_NAT}:4500/udp"
+      - "${PORT_L2TP}:1701/udp"
+      - "${PORT_OVPN_UDP}:1194/udp"
+      - "${PORT_OVPN_TCP}:443/tcp"
+      - "${PORT_SSL_ALT}:992/tcp"
+      - "${PORT_JSONRPC}:5555/tcp"
+    networks:
+      vpn-net:
+        ipv4_address: 172.21.0.3
+
+  wg-api:
+    build:
+      context: ./wg-api
+      network: host
+    container_name: wg-api
+    restart: unless-stopped
+    environment:
+      - WG_API_KEY=${WG_API_KEY}
+      - WG_CONTAINER=wireguard
+      - PORT=8099
+      - HOST_WG_DATA=${HOST_WG_DATA}
+    volumes:
+      - ./wg-data:/wg-data
+      - .:/compose
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "127.0.0.1:8099:8099"
+    networks:
+      vpn-net:
+      windscribe_net:
+        ipv4_address: 10.200.0.3
+
+  vpn-ui:
+    image: nginx:alpine
+    container_name: softether-ui
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./ui/index.html:/usr/share/nginx/html/index.html:ro
+      - ./ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./wg-data:/wg-data:ro
+    depends_on:
+      - softether
+      - wg-api
+
+  hairpin:
+    image: alpine:latest
+    container_name: vpn-hairpin
+    restart: "no"
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUBLIC_IPS=${PUBLIC_IPS}
+      - LAN_IP=${LAN_IP}
+      - WG_SUBNET=${WG_SUBNET:-10.13.13.0/24}
+      - SE_SUBNET=${SE_SUBNET:-}
+    volumes:
+      - ./hairpin.sh:/hairpin.sh:ro
+    command: sh /hairpin.sh
+
+networks:
+  vpn-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1
+  windscribe_net:
+    external: true

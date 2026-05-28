@@ -1,0 +1,35 @@
+services:
+  windscribe-gw:
+    build:
+      context: .
+      network: host
+    container_name: windscribe-gw
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    sysctls:
+      - net.ipv4.ip_forward=1
+    pid: host
+    volumes:
+      - /home/wsuser/.config/Windscribe:/home/wsuser/.config/Windscribe
+      - /home/wsuser/.local/share/Windscribe:/home/wsuser/.local/share/Windscribe
+      - /run/user/1000:/run/user/1000
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      windscribe_net:
+        ipv4_address: 10.200.0.2
+      vpn_net:
+        ipv4_address: 172.21.0.10
+    restart: unless-stopped
+
+networks:
+  windscribe_net:
+    name: windscribe_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.200.0.0/24
+  vpn_net:
+    name: softether-vpn_vpn-net
+    external: true
