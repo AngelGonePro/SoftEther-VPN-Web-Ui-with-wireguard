@@ -3,7 +3,11 @@ SoftEther VPN Web Ui With Wireguard Support and Custom port config
 
 TESTED DEVICES ARE WINDOWS, ANDROID, AND UniFi OS VPN Client. Issues with others feel free to make a pull request with detialed logs!!!!
 
+SERVER TESTED ON Linux - Debian 12
+
 `Full_VPN_Config.zip` has all the files inside if you use `curl` on linux or download it.
+
+`WindScribe-Upstream` FOLDER IS ONLY FOR ROUTING TRAFFIC THROUGH WINDSCRIBE VPN
 
 ---
 
