@@ -1,4 +1,4 @@
-# WARNING: STILL IN BETA DEVELOPMENT | SoftEther-VPN-Web-Ui-with-wireguard
+# WARNING: STILL IN BETA DEVELOPMENT | StratumVPN - a SoftEther VPN - Web-Ui - with wireguard
 SoftEther VPN Web Ui With Wireguard Support and Custom port config
 
 TESTED DEVICES ARE WINDOWS, ANDROID, AND UniFi OS VPN Client. Issues with others feel free to make a pull request with detialed logs!!!!
