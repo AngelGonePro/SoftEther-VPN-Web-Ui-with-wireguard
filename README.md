@@ -7,9 +7,22 @@ SERVER TESTED ON Linux - Debian 12
 
 AFTER FIRST DEPLOYMENT, YOU MUST ADD A PEER TO WIREGUARD IN ORDER FOR PEERS TO POPULATE.
 
+---
+
 `Full_VPN_Config.zip` has all the files inside if you use `curl` on linux or download it.
 
 `WindScribe-Upstream` FOLDER IS ONLY FOR ROUTING TRAFFIC THROUGH WINDSCRIBE VPN
+
+FOR `WindScrive-Upstream` if you edit the `.env`, then run this:
+```
+cd ~/softether-vpn
+docker compose down
+rm vpn_server.config
+touch vpn_server.config
+docker compose up -d --build
+sleep 60
+systemctl restart windscribe-routing.service
+```
 
 ---
 
